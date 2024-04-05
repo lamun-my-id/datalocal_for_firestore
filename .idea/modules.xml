@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/datalocal_for_firestore.iml" filepath="$PROJECT_DIR$/datalocal_for_firestore.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/datalocal_for_firestore_android.iml" filepath="$PROJECT_DIR$/android/datalocal_for_firestore_android.iml" />
+    </modules>
+  </component>
+</project>
