@@ -579,6 +579,7 @@ class DataLocalForFirestore {
       }
       _data = res['data'];
       _count = data.length;
+      FirestoreUtil().delete(collectionPath, id: id);
     } catch (e, st) {
       _log('findAsync Isolate.spawn $e, $st');
     }
