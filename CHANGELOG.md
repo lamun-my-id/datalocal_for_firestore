@@ -1,3 +1,6 @@
+## 1.0.2
+* fix some requirements
+
 ## 1.0.1
 * deletion fix.
 

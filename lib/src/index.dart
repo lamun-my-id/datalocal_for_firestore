@@ -6,10 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal/datalocal.dart';
 import 'package:datalocal/utils/date_time.dart';
 import 'package:datalocal/utils/encrypt.dart';
-import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
 import 'package:flutter/foundation.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
+import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
+import 'package:datalocal_for_firestore/src/extensions/list_data_item.dart';
 
 class DataLocalForFirestore {
   final String _stateName;
@@ -92,11 +93,6 @@ class DataLocalForFirestore {
   _startStream() async {
     // ================================
     try {
-      try {
-        initializeDateFormatting();
-      } catch (e) {
-        //
-      }
       _name = EncryptUtil().encript(
         "DataLocalForFirestore-$stateName",
       );
@@ -755,9 +751,10 @@ dynamic _listDataItemToJson(List<dynamic> args) {
   String result = jsonEncode(
     (args[1] as List<DataItem>).map((e) => e.toMap()).toList(),
     toEncodable: (_) {
-      // if (_ is Timestamp) {
-      //   return DateTimeUtils.toDateTime(_).toString();
-      // }
+      if (_ is Timestamp) {
+        return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
+            .toString();
+      }
       if (_ is DateTime) {
         return DateTimeUtils.toDateTime(_).toString();
       } else {
