@@ -1,5 +1,9 @@
+// import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
+// import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
+// import 'package:datalocal/datalocal.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
+// import 'package:example/dl.dart';
 import 'package:example/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -142,6 +146,9 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     notesDataLocal.onRefresh = () {
       notes = notesDataLocal.data;
+      // for (DataItem note in notes) {
+      //   print("========================${note.updatedAt}-${note.get("title")}");
+      // }
       setState(() {});
     };
     notesDataLocal.refresh();
@@ -223,6 +230,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                      Text("${data.get("updatedAt")}")
                                       // Text(
                                       //   DateTimeUtils.dateFormat(
                                       //           data.get("createdAt")) ??

@@ -55,6 +55,7 @@ class DataLocalForFirestore {
     );
     result._filters = filters;
     result._sorts = sorts;
+
     await result._startStream();
     return result;
   }
@@ -142,6 +143,8 @@ class DataLocalForFirestore {
             }
             await _stream();
           });
+        } else {
+          await _stream();
         }
       } catch (e) {
         _log("initialize error(2)#$stateName : $e");
@@ -160,6 +163,20 @@ class DataLocalForFirestore {
 
   Future<void> _streamNew() async {
     try {
+      List<DataItem> a = await find(
+        sorts: [
+          DataSort(key: "createdAt", desc: true),
+        ],
+      );
+      if (a.isNotEmpty) {
+        _lastNewestCheck = DateTimeUtils.toDateTime(a.first.get('createdAt'))!;
+      } else {
+        _lastNewestCheck = DateTime(2000);
+      }
+    } catch (e) {
+      //
+    }
+    try {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
@@ -173,7 +190,7 @@ class DataLocalForFirestore {
       filterUpdate.add(DataFilter(
         key: "createdAt",
         value: _lastNewestCheck,
-        operator: DataFilterOperator.isGreaterThanOrEqualTo,
+        operator: DataFilterOperator.isGreaterThan,
       ));
       _newStream = FirestoreUtil()
           .queryBuilder(
@@ -202,6 +219,7 @@ class DataLocalForFirestore {
               if (kIsWeb) {
                 _data = _listDataItemAddUpdate([null, data, element])['data'];
               } else {
+                _log("ada update");
                 ReceivePort rPort = ReceivePort();
                 await Isolate.spawn(
                     _listDataItemAddUpdate, [rPort.sendPort, data, element]);
@@ -229,6 +247,22 @@ class DataLocalForFirestore {
 
   Future<void> _streamUpdate() async {
     try {
+      List<DataItem> a = await find(
+        sorts: [
+          DataSort(key: "updatedAt", desc: true),
+        ],
+      );
+      if (a.isNotEmpty) {
+        _lastUpdateCheck = DateTimeUtils.toDateTime(a.first.get('updatedAt'))!;
+      } else {
+        _lastUpdateCheck = DateTime.now();
+        // print("object gak ada last update");
+      }
+    } catch (e) {
+      //
+    }
+
+    try {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
@@ -242,7 +276,7 @@ class DataLocalForFirestore {
       filterUpdate.add(DataFilter(
         key: "updatedAt",
         value: _lastUpdateCheck,
-        operator: DataFilterOperator.isGreaterThanOrEqualTo,
+        operator: DataFilterOperator.isGreaterThan,
       ));
       // _log('start stream $dbName');
       _updateStream = FirestoreUtil()
@@ -260,7 +294,7 @@ class DataLocalForFirestore {
           .listen((event) async {
         // _log('listen stream $dbName');
         if (event.docs.isNotEmpty) {
-          // _log('update available $dbName');
+          _log('ada data update ');
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
@@ -269,6 +303,7 @@ class DataLocalForFirestore {
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
             });
+            // print(element.updatedAt);
 
             try {
               // await Future.delayed(const Duration(seconds: 2));
@@ -279,6 +314,10 @@ class DataLocalForFirestore {
                 await Isolate.spawn(
                     _listDataItemAddUpdate, [rPort.sendPort, data, element]);
                 _data = Map<String, dynamic>.from(await rPort.first)['data'];
+                // print("simpan data");
+                // for (DataItem d in _data) {
+                //   print(d.updatedAt);
+                // }
                 rPort.close();
               }
             } catch (e) {
@@ -288,12 +327,13 @@ class DataLocalForFirestore {
           _data = await find(sorts: _sorts);
           refresh();
           _lastUpdateCheck = DateTime.now();
-          _log("ada data update baru menyimpan state");
+          _log("menyimpan state baru");
           await _saveState();
           _updateStream?.cancel();
           _streamUpdate();
         } else {
-          // _log('update unavailable $dbName');
+          _log(
+              'update unavailable $collectionPath ${filterUpdate.length} $_lastUpdateCheck');
         }
       });
     } catch (e) {
@@ -303,42 +343,15 @@ class DataLocalForFirestore {
 
   Future<void> _stream() async {
     try {
-      if (count > 1) {
-        if (DateTimeUtils.toDateTime(data.first.data['createdAt'])!
-            .isAfter(DateTimeUtils.toDateTime(data.last.data['createdAt'])!)) {
-          _lastNewestCheck =
-              DateTimeUtils.toDateTime(data.first.data['createdAt'])!;
-        } else {
-          _lastNewestCheck =
-              DateTimeUtils.toDateTime(data.last.data['createdAt'])!;
-        }
-      } else {
-        _lastNewestCheck = DateTime(2019);
-      }
-
       _streamNew();
     } catch (e) {
       //
     }
 
     try {
-      if (count > 1) {
-        if (DateTimeUtils.toDateTime(
-                data.first.get('updatedAt') ?? data.first.get('createdAt'))!
-            .isAfter(DateTimeUtils.toDateTime(
-                data.last.get('updatedAt') ?? data.last.get('createdAt'))!)) {
-          _lastUpdateCheck = DateTimeUtils.toDateTime(
-              data.first.get('updatedAt') ?? data.first.get('createdAt'))!;
-        } else {
-          _lastUpdateCheck = DateTimeUtils.toDateTime(
-              data.last.get('updatedAt') ?? data.last.get('createdAt'))!;
-        }
-      } else {
-        _lastUpdateCheck = DateTime.now();
-      }
       _streamUpdate();
     } catch (e) {
-      //
+      // print("error update");
     }
   }
 
@@ -347,9 +360,9 @@ class DataLocalForFirestore {
     _isLoading = true;
     refresh();
     int loop = (count / _size).ceil();
-    _log('state akan dibuat ${loop + 1} ($count/$_size)');
+    // _log('state akan dibuat ${loop + 1} ($count/$_size)');
     for (int i = 0; i < loop + 1; i++) {
-      _log("start savestate number : ${i + 1}");
+      // _log("start savestate number : ${i + 1}");
       SharedPreferences prefs;
       try {
         prefs = await SharedPreferences.getInstance();
@@ -361,7 +374,7 @@ class DataLocalForFirestore {
             prefs.setString(EncryptUtil().encript("$_name-$i"), res);
           } else {
             ReceivePort rPort = ReceivePort();
-            _log("Isolate spawn");
+            // _log("Isolate spawn");
             await Isolate.spawn(_listDataItemToJson,
                 [rPort.sendPort, data.skip(i * _size).take(_size).toList()]);
             // _log((await rPort.first as String).length);
@@ -369,12 +382,12 @@ class DataLocalForFirestore {
             prefs.setString(EncryptUtil().encript("$_name-$i"), value);
             rPort.close();
           }
-          _log("Berhasil save data");
+          // _log("Berhasil save data");
         } catch (e) {
           _log("gagal save state : $e");
           //
         }
-        _log("end of savestate number : ${i + 1}");
+        // _log("end of savestate number : ${i + 1}");
       } catch (e) {
         _log("pref null");
       }
@@ -455,10 +468,10 @@ class DataLocalForFirestore {
   /// Refresh data, launch if onRefresh is include
   refresh() {
     if (onRefresh != null) {
-      _log("refresh berjalan");
+      // _log("refresh berjalan");
       onRefresh!();
     } else {
-      _log("tidak ada refresh");
+      // _log("tidak ada refresh");
     }
   }
 
