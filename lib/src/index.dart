@@ -4,10 +4,10 @@ import 'dart:isolate';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal/datalocal.dart';
-import 'package:datalocal/utils/date_time.dart';
 import 'package:datalocal/utils/encrypt.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
 import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
 import 'package:datalocal_for_firestore/src/extensions/list_data_item.dart';
@@ -190,8 +190,13 @@ class DataLocalForFirestore {
           .listen((event) async {
         if (event.docs.isNotEmpty) {
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
-            DataItem element =
-                DataItem.fromMap({"id": doc.id, "data": doc.data()});
+            DataItem element = DataItem.fromMap({
+              "id": doc.id,
+              "data": doc.data(),
+              "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+              "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+              "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+            });
             try {
               // await Future.delayed(const Duration(seconds: 2));
               if (kIsWeb) {
@@ -257,8 +262,13 @@ class DataLocalForFirestore {
         if (event.docs.isNotEmpty) {
           // _log('update available $dbName');
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
-            DataItem element =
-                DataItem.fromMap({"id": doc.id, "data": doc.data()});
+            DataItem element = DataItem.fromMap({
+              "id": doc.id,
+              "data": doc.data(),
+              "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+              "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+              "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+            });
 
             try {
               // await Future.delayed(const Duration(seconds: 2));
@@ -605,8 +615,13 @@ class DataLocalForFirestore {
           .docs;
       if (news.isNotEmpty) {
         for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
-          DataItem element =
-              DataItem.fromMap({"id": doc.id, "data": doc.data()});
+          DataItem element = DataItem.fromMap({
+            "id": doc.id,
+            "data": doc.data(),
+            "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+            "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+            "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+          });
           try {
             if (kIsWeb) {
               _data = _listDataItemAddUpdate([null, data, element])['data'];

@@ -1,3 +1,7 @@
+## 1.0.4
+* fix date parse
+* fix some requirements
+
 ## 1.0.3
 * remove unused code
 * fix some requirements

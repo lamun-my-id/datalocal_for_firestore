@@ -79,7 +79,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   edit() async {
-    await notesDataLocal.updateOne(selectedData!.id, value: {
+    await notesDataLocal.updateSyncOne(selectedData!.id, value: {
       "title": titleController.text,
       "content": contentController.text,
       "updatedAt": DateTime.now(),
