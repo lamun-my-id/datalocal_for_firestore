@@ -44,6 +44,7 @@ class DataLocalForFirestore {
     List<DataSort> sorts = const [],
     Function()? onRefresh,
     bool? debugMode,
+    int? size,
   }) async {
     DataLocalForFirestore result = DataLocalForFirestore(
       stateName,
@@ -55,6 +56,7 @@ class DataLocalForFirestore {
     );
     result._filters = filters;
     result._sorts = sorts;
+    if (size != null) result._size = size;
 
     await result._startStream();
     return result;
@@ -80,7 +82,7 @@ class DataLocalForFirestore {
 
   // Local Variable Private
   late String _name;
-  final int _size = 200;
+  int _size = 100;
 
   /// Log DataLocalForFirestore used on debugMode
   _log(dynamic arg) async {
@@ -120,11 +122,7 @@ class DataLocalForFirestore {
             await Isolate.spawn(_jsonToListDataItem, [rPort.sendPort, res]);
             Map<String, dynamic> value = await rPort.first;
             data.addAll(value['data']);
-            //
-            // _lastNewestCheck = value['lastNewestCheck'];
-            // _lastUpdateCheck = value['lastUpdateCheck'];
-            // _count = value['count'];
-            //
+
             _count = data.length;
             rPort.close();
           }
@@ -139,19 +137,19 @@ class DataLocalForFirestore {
           _log("arg");
           _loadState().then((value) async {
             if (count == data.length || count == 0) {
-              await _sync();
+              _sync();
             }
-            await _stream();
+            _stream();
           });
         } else {
-          await _stream();
+          _stream();
         }
       } catch (e) {
         _log("initialize error(2)#$stateName : $e");
         if (count == data.length || count == 0) {
-          await _sync();
+          _sync();
         }
-        await _stream();
+        _stream();
       }
       _isInit = true;
       refresh();

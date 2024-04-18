@@ -1,3 +1,7 @@
+## 1.0.7
+* now size can be customized to load more fast
+* fix some requirements
+
 ## 1.0.6
 * fix data Timetstamp
 * fix data Geopoint
