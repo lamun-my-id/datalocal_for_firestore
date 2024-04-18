@@ -189,7 +189,7 @@ class DataLocalForFirestore {
       }
       filterUpdate.add(DataFilter(
         key: "createdAt",
-        value: _lastNewestCheck,
+        value: _lastNewestCheck.add(const Duration(seconds: 1)),
         operator: DataFilterOperator.isGreaterThan,
       ));
       _newStream = FirestoreUtil()
@@ -275,7 +275,7 @@ class DataLocalForFirestore {
       }
       filterUpdate.add(DataFilter(
         key: "updatedAt",
-        value: _lastUpdateCheck,
+        value: _lastUpdateCheck.add(const Duration(seconds: 1)),
         operator: DataFilterOperator.isGreaterThan,
       ));
       // _log('start stream $dbName');
@@ -782,6 +782,12 @@ dynamic _listDataItemToJson(List<dynamic> args) {
       if (_ is Timestamp) {
         return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
             .toString();
+      }
+      if (_ is GeoPoint) {
+        return {
+          "latitude": _.latitude,
+          "longitude": _.longitude,
+        };
       }
       if (_ is DateTime) {
         return DateTimeUtils.toDateTime(_).toString();

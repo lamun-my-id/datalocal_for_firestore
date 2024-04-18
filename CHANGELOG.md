@@ -1,3 +1,8 @@
+## 1.0.6
+* fix data Timetstamp
+* fix data Geopoint
+* add some requirements
+
 ## 1.0.5
 * fix data stream
 * fix data bug
