@@ -72,6 +72,9 @@ class DataLocalForFirestore {
   int _count = 0;
   int get count => _count;
 
+  int _actualCount = 0;
+  int get actualCount => _actualCount;
+
   List<DataItem> _data = [];
   List<DataItem> get data => _data;
   late DateTime _lastNewestCheck;
@@ -87,7 +90,8 @@ class DataLocalForFirestore {
   /// Log DataLocalForFirestore used on debugMode
   _log(dynamic arg) async {
     if (_debugMode) {
-      debugPrint('DataLocalForFirestore (Debug): ${arg.toString()}');
+      debugPrint(
+          '[Debug] DataLocalForFirestore ($stateName): ${arg.toString()}');
     }
   }
 
@@ -96,6 +100,8 @@ class DataLocalForFirestore {
   _startStream() async {
     // ================================
     try {
+      _isLoading = true;
+      refresh();
       _name = EncryptUtil().encript(
         "DataLocalForFirestore-$stateName",
       );
@@ -110,7 +116,7 @@ class DataLocalForFirestore {
 
         if (res == null) {
           _data = [];
-          throw "tidak ada state (${EncryptUtil().encript("$_name-0")})";
+          throw "tidak ada state";
         }
         try {
           if (kIsWeb) {
@@ -122,37 +128,36 @@ class DataLocalForFirestore {
             await Isolate.spawn(_jsonToListDataItem, [rPort.sendPort, res]);
             Map<String, dynamic> value = await rPort.first;
             data.addAll(value['data']);
-
-            _count = data.length;
             rPort.close();
           }
-          _isInit = true;
           refresh();
+          _isInit = true;
         } catch (e) {
           _log("initialize error(3) : $e");
           //
         }
         _count = data.length;
-        if (count == 0 || count == _size) {
-          _log("arg");
+        if (count == _size) {
           _loadState().then((value) async {
-            if (count == data.length || count == 0) {
+            // await _syncCountData();
+            if (data.length != count) {
               _sync();
             }
-            _stream();
           });
-        } else {
-          _stream();
         }
       } catch (e) {
-        _log("initialize error(2)#$stateName : $e");
-        if (count == data.length || count == 0) {
+        _log("initialize error(2) : $e");
+      }
+      if (count < 1) {
+        await _preSync();
+        Future.delayed(const Duration(microseconds: 100)).then((value) async {
           _sync();
-        }
-        _stream();
+        });
       }
       _isInit = true;
       refresh();
+      if (count > 0) _syncCount();
+      _stream();
     } catch (e) {
       _log("initialize error(1) : $e");
       //
@@ -605,9 +610,59 @@ class DataLocalForFirestore {
     _saveState();
   }
 
+  Future<void> _preSync() async {
+    try {
+      if (!isInit) throw "not init yet";
+
+      List<DocumentSnapshot<Map<String, dynamic>>> news = (await FirestoreUtil()
+              .queryBuilder(
+                _collectionPath,
+                sorts: _sorts,
+                filters: _filters,
+                limit: _size,
+              )
+              .get())
+          .docs;
+      if (news.isNotEmpty) {
+        for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
+          DataItem element = DataItem.fromMap({
+            "id": doc.id,
+            "data": doc.data(),
+            "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+            "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+            "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+          });
+          try {
+            if (kIsWeb) {
+              _data = _listDataItemAddUpdate([null, data, element])['data'];
+            } else {
+              ReceivePort rPort = ReceivePort();
+              await Isolate.spawn(
+                  _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+              _data = Map<String, dynamic>.from(await rPort.first)['data'];
+              rPort.close();
+            }
+          } catch (e) {
+            _log("newStream error(1) : $e");
+            //
+          }
+        }
+        _data = await find(sorts: _sorts);
+        refresh();
+        _saveState();
+        _count = data.length;
+        _lastNewestCheck = DateTime.now();
+      }
+    } catch (e) {
+      //
+    }
+  }
+
   Future<void> _sync() async {
     try {
       if (!isInit) throw "not init yet";
+      _isLoading = true;
+      refresh();
       _count = (await FirestoreUtil()
                   .queryBuilder(_collectionPath,
                       sorts: _sorts, filters: _filters, isCount: true)
@@ -654,8 +709,23 @@ class DataLocalForFirestore {
         _count = data.length;
         _lastNewestCheck = DateTime.now();
       }
+      _isLoading = false;
+      refresh();
     } catch (e) {
       //
+    }
+  }
+
+  Future<void> _syncCount() async {
+    _actualCount = _count = (await FirestoreUtil()
+                .queryBuilder(_collectionPath,
+                    sorts: _sorts, filters: _filters, isCount: true)
+                .count()
+                .get())
+            .count ??
+        0;
+    if (_actualCount != count) {
+      _sync();
     }
   }
 
@@ -773,7 +843,7 @@ dynamic _listDataItemFind(List<dynamic> args) {
 
 /// Convert List<DataItem> to json
 dynamic _listDataItemToJson(List<dynamic> args) {
-  // _log('_listDataItemModelToJson start');
+  // _log('_listDataItemToJson start');
   String result = jsonEncode(
     (args[1] as List<DataItem>).map((e) => e.toMap()).toList(),
     toEncodable: (_) {
