@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal/datalocal.dart';
 import 'package:datalocal/utils/encrypt.dart';
+import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
@@ -281,7 +282,7 @@ class DataLocalForFirestore {
         value: _lastUpdateCheck.add(const Duration(seconds: 1)),
         operator: DataFilterOperator.isGreaterThan,
       ));
-      // _log('start stream $dbName');
+      // _log('start stream $collectionPath');
       _updateStream = FirestoreUtil()
           .queryBuilder(
             _collectionPath,
@@ -295,7 +296,7 @@ class DataLocalForFirestore {
           )
           .snapshots()
           .listen((event) async {
-        // _log('listen stream $dbName');
+        // _log('listen stream $collectionPath');
         if (event.docs.isNotEmpty) {
           _log('ada data update ');
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
@@ -659,60 +660,153 @@ class DataLocalForFirestore {
   }
 
   Future<void> _sync() async {
-    try {
-      if (!isInit) throw "not init yet";
-      _isLoading = true;
-      refresh();
-      _count = (await FirestoreUtil()
-                  .queryBuilder(_collectionPath,
-                      sorts: _sorts, filters: _filters, isCount: true)
-                  .count()
-                  .get())
-              .count ??
-          0;
-
-      List<DocumentSnapshot<Map<String, dynamic>>> news = (await FirestoreUtil()
-              .queryBuilder(
-                _collectionPath,
-                sorts: _sorts,
-                filters: _filters,
-              )
-              .get())
-          .docs;
-      if (news.isNotEmpty) {
-        for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
-          DataItem element = DataItem.fromMap({
-            "id": doc.id,
-            "data": doc.data(),
-            "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
-            "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
-            "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
-          });
-          try {
-            if (kIsWeb) {
-              _data = _listDataItemAddUpdate([null, data, element])['data'];
-            } else {
-              ReceivePort rPort = ReceivePort();
-              await Isolate.spawn(
-                  _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-              _data = Map<String, dynamic>.from(await rPort.first)['data'];
-              rPort.close();
-            }
-          } catch (e) {
-            _log("newStream error(1) : $e");
-            //
-          }
-        }
-        _data = await find(sorts: _sorts);
-        refresh();
-        _saveState();
-        _count = data.length;
-        _lastNewestCheck = DateTime.now();
+    if (!isInit) {
+      throw "data has not been initialized";
+    }
+    if (count > 1) {
+      if (DateTimeUtils.toDateTime(data.first.data['createdAt'])!
+          .isAfter(DateTimeUtils.toDateTime(data.last.data['createdAt'])!)) {
+        _lastNewestCheck =
+            DateTimeUtils.toDateTime(data.first.data['createdAt'])!;
+      } else {
+        _lastNewestCheck =
+            DateTimeUtils.toDateTime(data.last.data['createdAt'])!;
       }
-      _isLoading = false;
+    } else {
+      _lastNewestCheck = DateTime(2019);
+    }
+    List<DataFilter>? filterNews = [];
+    if (_filters != null) {
+      for (DataFilter filter in _filters!) {
+        if (filter.key != "updatedAt" &&
+            filter.key != "createdAt" &&
+            filter.key != 'deletedAt') {
+          filterNews.add(filter);
+        }
+      }
+    }
+    filterNews.add(DataFilter(
+      key: "createdAt",
+      value: _lastNewestCheck,
+      operator: DataFilterOperator.isGreaterThan,
+    ));
+    List<DocumentSnapshot<Map<String, dynamic>>> news = (await FirestoreUtil()
+            .queryBuilder(
+              collectionPath,
+              sorts: [
+                DataSort(
+                  key: "createdAt",
+                  desc: true,
+                ),
+              ],
+              filters: filterNews,
+            )
+            .get())
+        .docs;
+    if (news.isNotEmpty) {
+      for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
+        DataItem element = DataItem.fromMap({
+          "id": doc.id,
+          "data": doc.data(),
+          "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+          "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+          "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+        });
+        try {
+          if (kIsWeb) {
+            _data = _listDataItemAddUpdate([null, data, element])['data'];
+          } else {
+            ReceivePort rPort = ReceivePort();
+            await Isolate.spawn(
+                _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+            _data = Map<String, dynamic>.from(await rPort.first)['data'];
+            rPort.close();
+          }
+        } catch (e) {
+          _log("newStream error(1) : $e");
+          //
+        }
+      }
+      _data = await find(sorts: _sorts);
       refresh();
-    } catch (e) {
-      //
+      _saveState();
+      _count = data.length;
+      _lastNewestCheck = DateTime.now();
+    }
+
+    if (count > 1) {
+      if (DateTimeUtils.toDateTime(
+              data.first.get('updatedAt') ?? data.first.get('createdAt'))!
+          .isAfter(DateTimeUtils.toDateTime(
+              data.last.get('updatedAt') ?? data.last.get('createdAt'))!)) {
+        _lastUpdateCheck = DateTimeUtils.toDateTime(
+            data.first.get('updatedAt') ?? data.first.get('createdAt'))!;
+      } else {
+        _lastUpdateCheck = DateTimeUtils.toDateTime(
+            data.last.get('updatedAt') ?? data.last.get('createdAt'))!;
+      }
+    } else {
+      _lastUpdateCheck = DateTime.now();
+    }
+    List<DataFilter>? filterUpdate = [];
+    if (_filters != null) {
+      for (DataFilter filter in _filters!) {
+        if (filter.key != "updatedAt" &&
+            filter.key != "createdAt" &&
+            filter.key != 'deletedAt') {
+          filterUpdate.add(filter);
+        }
+      }
+    }
+    filterUpdate.add(DataFilter(
+      key: "updatedAt",
+      value: _lastUpdateCheck,
+      operator: DataFilterOperator.isGreaterThan,
+    ));
+    _log('start stream $collectionPath');
+    List<DocumentSnapshot<Map<String, dynamic>>> updates =
+        (await FirestoreUtil()
+                .queryBuilder(
+                  collectionPath,
+                  sorts: [
+                    DataSort(
+                      key: "updatedAt",
+                      desc: true,
+                    ),
+                  ],
+                  filters: filterUpdate,
+                )
+                .get())
+            .docs;
+    if (news.isNotEmpty) {
+      for (DocumentSnapshot<Map<String, dynamic>> doc in updates) {
+        DataItem element = DataItem.fromMap({
+          "id": doc.id,
+          "data": doc.data(),
+          "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+          "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+          "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+        });
+        try {
+          if (kIsWeb) {
+            _data = _listDataItemAddUpdate([null, data, element])['data'];
+          } else {
+            ReceivePort rPort = ReceivePort();
+            await Isolate.spawn(
+                _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+            _data = Map<String, dynamic>.from(await rPort.first)['data'];
+            rPort.close();
+          }
+        } catch (e) {
+          _log("newStream error(1) : $e");
+          //
+        }
+      }
+      _data = await find(sorts: _sorts);
+      refresh();
+      _saveState();
+      _count = data.length;
+      _lastNewestCheck = DateTime.now();
     }
   }
 

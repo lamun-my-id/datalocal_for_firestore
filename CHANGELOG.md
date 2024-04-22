@@ -1,3 +1,11 @@
+## 1.0.9
+* fix bug loading
+* fix some requirements
+
+## 1.0.8
+* presync data
+* fix some requirements
+
 ## 1.0.7
 * now size can be customized to load more fast
 * fix some requirements
