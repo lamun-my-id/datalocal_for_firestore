@@ -1,3 +1,9 @@
+## 1.0.10
+* change flow data
+* fix bug
+* fix some requirements
+
+
 ## 1.0.9
 * fix bug loading
 * fix some requirements

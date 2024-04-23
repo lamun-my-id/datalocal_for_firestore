@@ -1,9 +1,10 @@
 // import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
-// import 'package:datalocal/datalocal.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 // import 'package:example/dl.dart';
+// import 'package:datalocal/datalocal.dart';
 import 'package:example/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -175,6 +176,20 @@ class _MyHomePageState extends State<MyHomePage> {
         height: MediaQuery.of(context).size.height,
         child: Column(
           children: [
+            StreamBuilder(
+              stream:
+                  FirebaseFirestore.instance.collection("notes").snapshots(),
+              builder: (_, snapshot) {
+                if (!snapshot.hasData) {
+                  return const SizedBox(
+                    child: Text("Loading"),
+                  );
+                } else {
+                  return Text("${snapshot.data!.docs.length}");
+                }
+              },
+            ),
+            Text(notesDataLocal.data.length.toString()),
             Expanded(
               flex: 5,
               child: Builder(
@@ -230,7 +245,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      Text("${data.get("updatedAt")}")
+                                      Text(
+                                          "${data.get("createdAt") ?? data.get("updatedAt")}")
                                       // Text(
                                       //   DateTimeUtils.dateFormat(
                                       //           data.get("createdAt")) ??

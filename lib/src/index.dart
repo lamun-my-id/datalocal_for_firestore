@@ -1,9 +1,12 @@
+// ignore_for_file: implementation_imports
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal/datalocal.dart';
+import 'package:datalocal/src/models/data_container.dart';
 import 'package:datalocal/utils/encrypt.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -76,6 +79,8 @@ class DataLocalForFirestore {
   int _actualCount = 0;
   int get actualCount => _actualCount;
 
+  late DataContainer _container;
+
   List<DataItem> _data = [];
   List<DataItem> get data => _data;
   late DateTime _lastNewestCheck;
@@ -101,64 +106,51 @@ class DataLocalForFirestore {
   _startStream() async {
     // ================================
     try {
-      _isLoading = true;
-      refresh();
       _name = EncryptUtil().encript(
-        "DataLocalForFirestore-$stateName",
+        "DataLocal-$stateName",
       );
       try {
         String? res;
         try {
           final SharedPreferences prefs = await SharedPreferences.getInstance();
-          res = (prefs.getString(EncryptUtil().encript("$_name-0")));
+          res = (prefs.getString(EncryptUtil().encript(_name)));
         } catch (e) {
           _log("error get res");
         }
 
         if (res == null) {
-          _data = [];
-          throw "tidak ada state";
+          _container = DataContainer(
+            name: _name,
+            ids: [],
+          );
+          "tidak ada state";
+        } else {
+          _container =
+              DataContainer.fromMap(jsonDecode(EncryptUtil().decript(res)));
         }
-        try {
-          if (kIsWeb) {
-            Map<String, dynamic> value = _jsonToListDataItem([null, res]);
-            data.addAll(value['data']);
-            _count = data.length;
-          } else {
-            ReceivePort rPort = ReceivePort();
-            await Isolate.spawn(_jsonToListDataItem, [rPort.sendPort, res]);
-            Map<String, dynamic> value = await rPort.first;
-            data.addAll(value['data']);
-            rPort.close();
-          }
-          refresh();
-          _isInit = true;
-        } catch (e) {
-          _log("initialize error(3) : $e");
-          //
-        }
-        _count = data.length;
-        if (count == _size) {
-          _loadState().then((value) async {
-            // await _syncCountData();
-            if (data.length != count) {
-              _sync();
-            }
+      } catch (e) {
+        _log("initialize error(2)#$stateName : $e");
+      }
+
+      try {
+        if (_container.ids.isNotEmpty) {
+          _log("Data item ada mulai loadstate");
+          _loadState().then((value) {
+            _syncCount();
+            _stream();
+          });
+        } else {
+          _log("Data item kosong");
+          _preSync().then((value) async {
+            await _sync();
+            _stream();
           });
         }
       } catch (e) {
-        _log("initialize error(2) : $e");
-      }
-      if (count < 1) {
-        await _preSync();
-        Future.delayed(const Duration(microseconds: 100)).then((value) async {
-          _sync();
-        });
+        _log("initialize error(2)#$stateName : $e");
       }
       _isInit = true;
       refresh();
-      if (count > 0) _syncCount();
-      _stream();
     } catch (e) {
       _log("initialize error(1) : $e");
       //
@@ -233,16 +225,23 @@ class DataLocalForFirestore {
             } catch (e) {
               _log("newStream error(1) : $e");
             }
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            prefs.setString(EncryptUtil().encript(element.id),
+                EncryptUtil().encript(element.toJson()));
+            _container.ids.add(element.id);
           }
-          _data = await find(sorts: _sorts);
+          _data = await find(sorts: _sorts, filters: _filters);
           refresh();
           _log("ada data baru menyimpan state");
+
           _lastNewestCheck = DateTime.now();
           await _saveState();
           _count = data.length;
           _newStream?.cancel();
           _streamNew();
-        } else {}
+        } else {
+          _log("new Stream unavailable, $_lastNewestCheck");
+        }
       });
     } catch (e) {
       _log("newStream error(2) : $e");
@@ -324,11 +323,16 @@ class DataLocalForFirestore {
                 // }
                 rPort.close();
               }
+
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              prefs.setString(EncryptUtil().encript(element.id),
+                  EncryptUtil().encript(element.toJson()));
+              _container.ids.add(element.id);
             } catch (e) {
               _log("updateStream error(1) : $e");
             }
           }
-          _data = await find(sorts: _sorts);
+          _data = await find(sorts: _sorts, filters: _filters);
           refresh();
           _lastUpdateCheck = DateTime.now();
           _log("menyimpan state baru");
@@ -336,8 +340,7 @@ class DataLocalForFirestore {
           _updateStream?.cancel();
           _streamUpdate();
         } else {
-          _log(
-              'update unavailable $collectionPath ${filterUpdate.length} $_lastUpdateCheck');
+          _log('update unavailable, $_lastUpdateCheck');
         }
       });
     } catch (e) {
@@ -363,38 +366,12 @@ class DataLocalForFirestore {
   Future<void> _saveState() async {
     _isLoading = true;
     refresh();
-    int loop = (count / _size).ceil();
-    // _log('state akan dibuat ${loop + 1} ($count/$_size)');
-    for (int i = 0; i < loop + 1; i++) {
-      // _log("start savestate number : ${i + 1}");
-      SharedPreferences prefs;
-      try {
-        prefs = await SharedPreferences.getInstance();
-        try {
-          if (kIsWeb) {
-            String res = _listDataItemToJson(
-                [null, data.skip(i * _size).take(_size).toList()]);
-            // _log((await rPort.first as String).length);
-            prefs.setString(EncryptUtil().encript("$_name-$i"), res);
-          } else {
-            ReceivePort rPort = ReceivePort();
-            // _log("Isolate spawn");
-            await Isolate.spawn(_listDataItemToJson,
-                [rPort.sendPort, data.skip(i * _size).take(_size).toList()]);
-            // _log((await rPort.first as String).length);
-            String value = await rPort.first as String;
-            prefs.setString(EncryptUtil().encript("$_name-$i"), value);
-            rPort.close();
-          }
-          // _log("Berhasil save data");
-        } catch (e) {
-          _log("gagal save state : $e");
-          //
-        }
-        // _log("end of savestate number : ${i + 1}");
-      } catch (e) {
-        _log("pref null");
-      }
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(EncryptUtil().encript(_name),
+          EncryptUtil().encript(_container.toJson()));
+    } catch (e) {
+      //
     }
     _isLoading = false;
     refresh();
@@ -402,43 +379,21 @@ class DataLocalForFirestore {
 
   /// Used to load state data from shared preferences
   Future<void> _loadState() async {
-    // _log("start loadstate");
     _isLoading = true;
     refresh();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    int i = 0;
-    bool lanjut = true;
-    List<DataItem> result = [];
-    while (lanjut) {
-      String? res = (prefs.getString(EncryptUtil().encript("$_name-$i")));
-      if (res != null) {
-        // _log("start loadstate number: ${i + 1}");
-        try {
-          if (kIsWeb) {
-            Map<String, dynamic> value = _jsonToListDataItem([null, res]);
-            result.addAll(value['data']);
-          } else {
-            ReceivePort rPort = ReceivePort();
-            await Isolate.spawn(_jsonToListDataItem, [rPort.sendPort, res]);
-            Map<String, dynamic> value = await rPort.first;
-            result.addAll(value['data']);
-            rPort.close();
-          }
-          refresh();
-          // _log("Berhasil load data");
-        } catch (e) {
-          //
-        }
-        i++;
+
+    for (String id in _container.ids) {
+      String? ref = prefs.getString(EncryptUtil().encript(id));
+      if (ref == null) {
+        // Tidak ada data yang disimpan
       } else {
-        lanjut = false;
+        _data.add(DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref))));
       }
     }
-    _data = result;
+
     _count = data.length;
-    _data = await find(
-        // sorts: sorts
-        );
+    _data = await find(sorts: _sorts, filters: _filters);
     _isLoading = false;
     refresh();
   }
@@ -471,6 +426,7 @@ class DataLocalForFirestore {
 
   /// Refresh data, launch if onRefresh is include
   refresh() {
+    _count = _container.ids.length;
     if (onRefresh != null) {
       // _log("refresh berjalan");
       onRefresh!();
@@ -516,18 +472,18 @@ class DataLocalForFirestore {
       parent: stateName,
     );
     try {
-      data.insert(0, newData);
+      _data.insert(0, newData);
       refresh();
-      find(
-              // sorts: sorts
-              )
-          .then((value) async {
+      find(sorts: _sorts, filters: _filters).then((value) async {
         _data = value;
         _count = data.length;
         refresh();
-        _log("start save state");
+
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setString(EncryptUtil().encript(newData.id),
+            EncryptUtil().encript(newData.toJson()));
+        _container.ids.add(newData.id);
         await _saveState();
-        _log("start save success");
       });
     } catch (e) {
       _log("error disini");
@@ -562,6 +518,9 @@ class DataLocalForFirestore {
     if (d.isEmpty) {
       throw "Tidak ada data";
     }
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString(
+        EncryptUtil().encript(id), EncryptUtil().encript(d.first.toJson()));
     refresh();
     _saveState();
     return d.first;
@@ -607,6 +566,11 @@ class DataLocalForFirestore {
       _log('findAsync Isolate.spawn $e, $st');
     }
 
+    _container.ids.remove(id);
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(EncryptUtil().encript(id));
+
     refresh();
     _saveState();
   }
@@ -614,18 +578,17 @@ class DataLocalForFirestore {
   Future<void> _preSync() async {
     try {
       if (!isInit) throw "not init yet";
-
-      List<DocumentSnapshot<Map<String, dynamic>>> news = (await FirestoreUtil()
-              .queryBuilder(
-                _collectionPath,
-                sorts: _sorts,
-                filters: _filters,
-                limit: _size,
-              )
-              .get())
-          .docs;
-      if (news.isNotEmpty) {
-        for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
+      QuerySnapshot<Map<String, dynamic>> query = await FirestoreUtil()
+          .queryBuilder(
+            _collectionPath,
+            sorts: [DataSort(key: "createdAt", desc: true)],
+            filters: _filters,
+            limit: _size,
+          )
+          .get();
+      List<DocumentSnapshot<Map<String, dynamic>>> docs = query.docs;
+      if (docs.isNotEmpty) {
+        for (DocumentSnapshot<Map<String, dynamic>> doc in docs) {
           DataItem element = DataItem.fromMap({
             "id": doc.id,
             "data": doc.data(),
@@ -641,19 +604,24 @@ class DataLocalForFirestore {
               await Isolate.spawn(
                   _listDataItemAddUpdate, [rPort.sendPort, data, element]);
               _data = Map<String, dynamic>.from(await rPort.first)['data'];
+
               rPort.close();
             }
           } catch (e) {
             _log("newStream error(1) : $e");
             //
           }
+
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          prefs.setString(EncryptUtil().encript(element.id),
+              EncryptUtil().encript(element.toJson()));
+          _container.ids.add(doc.id);
         }
-        _data = await find(sorts: _sorts);
+        _data = await find(sorts: _sorts, filters: _filters);
         refresh();
         _saveState();
         _count = data.length;
-        _lastNewestCheck = DateTime.now();
-      }
+      } else {}
     } catch (e) {
       //
     }
@@ -726,8 +694,13 @@ class DataLocalForFirestore {
           _log("newStream error(1) : $e");
           //
         }
+
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setString(EncryptUtil().encript(element.id),
+            EncryptUtil().encript(element.toJson()));
+        _container.ids.add(doc.id);
       }
-      _data = await find(sorts: _sorts);
+      _data = await find(sorts: _sorts, filters: _filters);
       refresh();
       _saveState();
       _count = data.length;
@@ -801,8 +774,13 @@ class DataLocalForFirestore {
           _log("newStream error(1) : $e");
           //
         }
+
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setString(EncryptUtil().encript(element.id),
+            EncryptUtil().encript(element.toJson()));
+        _container.ids.add(doc.id);
       }
-      _data = await find(sorts: _sorts);
+      _data = await find(sorts: _sorts, filters: _filters);
       refresh();
       _saveState();
       _count = data.length;
@@ -851,25 +829,25 @@ dynamic _listDataItemAddUpdate(List<dynamic> args) {
 }
 
 /// Convert Json to List<DataItem>
-dynamic _jsonToListDataItem(List<dynamic> args) {
-  List<DataItem> result = [];
-  int count = 0;
-  try {
-    result = List<Map<String, dynamic>>.from(
-            jsonDecode(EncryptUtil().decript(args[1])))
-        .map((e) => DataItem.fromMap(e))
-        .toList();
-    count = result.length;
-  } catch (e) {
-    // print(args[1]);
-  }
-  if (kIsWeb) {
-    return {"data": result, "count": count};
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, {"data": result, "count": count});
-  }
-}
+// dynamic _jsonToListDataItem(List<dynamic> args) {
+//   List<DataItem> result = [];
+//   int count = 0;
+//   try {
+//     result = List<Map<String, dynamic>>.from(
+//             jsonDecode(EncryptUtil().decript(args[1])))
+//         .map((e) => DataItem.fromMap(e))
+//         .toList();
+//     count = result.length;
+//   } catch (e) {
+//     // print(args[1]);
+//   }
+//   if (kIsWeb) {
+//     return {"data": result, "count": count};
+//   } else {
+//     SendPort port = args[0];
+//     Isolate.exit(port, {"data": result, "count": count});
+//   }
+// }
 
 /// Update List DataItem
 dynamic _listDataItemUpdate(List<dynamic> args) {
@@ -936,34 +914,34 @@ dynamic _listDataItemFind(List<dynamic> args) {
 }
 
 /// Convert List<DataItem> to json
-dynamic _listDataItemToJson(List<dynamic> args) {
-  // _log('_listDataItemToJson start');
-  String result = jsonEncode(
-    (args[1] as List<DataItem>).map((e) => e.toMap()).toList(),
-    toEncodable: (_) {
-      if (_ is Timestamp) {
-        return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
-            .toString();
-      }
-      if (_ is GeoPoint) {
-        return {
-          "latitude": _.latitude,
-          "longitude": _.longitude,
-        };
-      }
-      if (_ is DateTime) {
-        return DateTimeUtils.toDateTime(_).toString();
-      } else {
-        // _log(_.runtimeType.toString());
-        return "";
-      }
-    },
-  );
-  // _log('${result.length}');
-  if (kIsWeb) {
-    return EncryptUtil().encript(result);
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, EncryptUtil().encript(result));
-  }
-}
+// dynamic _listDataItemToJson(List<dynamic> args) {
+//   // _log('_listDataItemToJson start');
+//   String result = jsonEncode(
+//     (args[1] as List<DataItem>).map((e) => e.toMap()).toList(),
+//     toEncodable: (_) {
+//       if (_ is Timestamp) {
+//         return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
+//             .toString();
+//       }
+//       if (_ is GeoPoint) {
+//         return {
+//           "latitude": _.latitude,
+//           "longitude": _.longitude,
+//         };
+//       }
+//       if (_ is DateTime) {
+//         return DateTimeUtils.toDateTime(_).toString();
+//       } else {
+//         // _log(_.runtimeType.toString());
+//         return "";
+//       }
+//     },
+//   );
+//   // _log('${result.length}');
+//   if (kIsWeb) {
+//     return EncryptUtil().encript(result);
+//   } else {
+//     SendPort port = args[0];
+//     Isolate.exit(port, EncryptUtil().encript(result));
+//   }
+// }
