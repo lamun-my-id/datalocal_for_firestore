@@ -1,3 +1,8 @@
+## 1.0.11
+* fix load state
+* fix save state
+* fix some requirements
+
 ## 1.0.10
 * change flow data
 * fix bug
