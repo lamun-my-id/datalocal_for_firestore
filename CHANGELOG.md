@@ -1,3 +1,7 @@
+## 1.0.12
+* improvements sync
+* fix tipedata for firestore
+
 ## 1.0.11
 * fix load state
 * fix save state

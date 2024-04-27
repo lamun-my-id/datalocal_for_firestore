@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
+import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 
 extension DataItemExtension on DataItem {
   dynamic get(String key) {
@@ -45,5 +48,25 @@ extension DataItemExtension on DataItem {
     } catch (e) {
       return null;
     }
+  }
+
+  String toJson() {
+    return jsonEncode(
+      toMap(),
+      toEncodable: (_) {
+        if (_ is DateTime) {
+          return DateTimeUtils.toDateTime(_).toString();
+        } else if (_ is Timestamp) {
+          return DateTimeUtils.toDateTime(_).toString();
+        } else if (_ is GeoPoint) {
+          return {
+            "latitude": _.latitude,
+            "longitude": _.longitude,
+          };
+        } else {
+          return "";
+        }
+      },
+    );
   }
 }

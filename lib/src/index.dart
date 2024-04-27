@@ -198,6 +198,14 @@ class DataLocalForFirestore {
           .snapshots()
           .listen((event) async {
         if (event.docs.isNotEmpty) {
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          _data.addAll(event.docs.map((e) => DataItem.fromMap({
+                "id": e.id,
+                "data": e.data(),
+                "createdAt": DateTimeUtils.toDateTime(e.data()['createdAt']),
+                "updatedAt": DateTimeUtils.toDateTime(e.data()['updatedAt']),
+                "deletedAt": DateTimeUtils.toDateTime(e.data()['deletedAt']),
+              })));
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
@@ -208,20 +216,19 @@ class DataLocalForFirestore {
             });
             try {
               // await Future.delayed(const Duration(seconds: 2));
-              if (kIsWeb) {
-                _data = _listDataItemAddUpdate([null, data, element])['data'];
-              } else {
-                _log("ada update");
-                ReceivePort rPort = ReceivePort();
-                await Isolate.spawn(
-                    _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-                _data = Map<String, dynamic>.from(await rPort.first)['data'];
-                rPort.close();
-              }
+              // if (kIsWeb) {
+              //   _data = _listDataItemAddUpdate([null, data, element])['data'];
+              // } else {
+              //   _log("ada update");
+              //   ReceivePort rPort = ReceivePort();
+              //   await Isolate.spawn(
+              //       _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+              //   _data = Map<String, dynamic>.from(await rPort.first)['data'];
+              //   rPort.close();
+              // }
             } catch (e) {
               _log("newStream error(1) : $e");
             }
-            SharedPreferences prefs = await SharedPreferences.getInstance();
             prefs.setString(EncryptUtil().encript(element.id),
                 EncryptUtil().encript(element.toJson()));
             _container.ids.add(element.id);
@@ -293,7 +300,15 @@ class DataLocalForFirestore {
           .listen((event) async {
         // _log('listen stream $collectionPath');
         if (event.docs.isNotEmpty) {
+          SharedPreferences prefs = await SharedPreferences.getInstance();
           _log('ada data update ');
+          _data.addAll(event.docs.map((e) => DataItem.fromMap({
+                "id": e.id,
+                "data": e.data(),
+                "createdAt": DateTimeUtils.toDateTime(e.data()['createdAt']),
+                "updatedAt": DateTimeUtils.toDateTime(e.data()['updatedAt']),
+                "deletedAt": DateTimeUtils.toDateTime(e.data()['deletedAt']),
+              })));
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
@@ -306,21 +321,20 @@ class DataLocalForFirestore {
 
             try {
               // await Future.delayed(const Duration(seconds: 2));
-              if (kIsWeb) {
-                _data = _listDataItemAddUpdate([null, data, element])['data'];
-              } else {
-                ReceivePort rPort = ReceivePort();
-                await Isolate.spawn(
-                    _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-                _data = Map<String, dynamic>.from(await rPort.first)['data'];
-                // _log("simpan data");
-                // for (DataItem d in _data) {
-                //   _log(d.updatedAt);
-                // }
-                rPort.close();
-              }
+              // if (kIsWeb) {
+              //   _data = _listDataItemAddUpdate([null, data, element])['data'];
+              // } else {
+              //   ReceivePort rPort = ReceivePort();
+              //   await Isolate.spawn(
+              //       _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+              //   _data = Map<String, dynamic>.from(await rPort.first)['data'];
+              //   // _log("simpan data");
+              //   // for (DataItem d in _data) {
+              //   //   _log(d.updatedAt);
+              //   // }
+              //   rPort.close();
+              // }
 
-              SharedPreferences prefs = await SharedPreferences.getInstance();
               prefs.setString(EncryptUtil().encript(element.id),
                   EncryptUtil().encript(element.toJson()));
               _container.ids.add(element.id);
@@ -611,8 +625,16 @@ class DataLocalForFirestore {
             limit: _size,
           )
           .get();
+      SharedPreferences prefs = await SharedPreferences.getInstance();
       List<DocumentSnapshot<Map<String, dynamic>>> docs = query.docs;
       if (docs.isNotEmpty) {
+        _data.addAll(docs.map((e) => DataItem.fromMap({
+              "id": e.id,
+              "data": e.data(),
+              "createdAt": DateTimeUtils.toDateTime(e.data()!['createdAt']),
+              "updatedAt": DateTimeUtils.toDateTime(e.data()!['updatedAt']),
+              "deletedAt": DateTimeUtils.toDateTime(e.data()!['deletedAt']),
+            })));
         for (DocumentSnapshot<Map<String, dynamic>> doc in docs) {
           DataItem element = DataItem.fromMap({
             "id": doc.id,
@@ -621,23 +643,22 @@ class DataLocalForFirestore {
             "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
             "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
           });
-          try {
-            if (kIsWeb) {
-              _data = _listDataItemAddUpdate([null, data, element])['data'];
-            } else {
-              ReceivePort rPort = ReceivePort();
-              await Isolate.spawn(
-                  _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-              _data = Map<String, dynamic>.from(await rPort.first)['data'];
+          // try {
+          //   if (kIsWeb) {
+          //     _data = _listDataItemAddUpdate([null, data, element])['data'];
+          //   } else {
+          //     ReceivePort rPort = ReceivePort();
+          //     await Isolate.spawn(
+          //         _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+          //     _data = Map<String, dynamic>.from(await rPort.first)['data'];
 
-              rPort.close();
-            }
-          } catch (e) {
-            _log("newStream error(1) : $e");
-            //
-          }
+          //     rPort.close();
+          //   }
+          // } catch (e) {
+          //   _log("newStream error(1) : $e");
+          //   //
+          // }
 
-          SharedPreferences prefs = await SharedPreferences.getInstance();
           prefs.setString(EncryptUtil().encript(element.id),
               EncryptUtil().encript(element.toJson()));
           _container.ids.add(doc.id);
@@ -691,6 +712,7 @@ class DataLocalForFirestore {
           value: date,
           operator: DataFilterOperator.isLessThan,
         ));
+        SharedPreferences prefs = await SharedPreferences.getInstance();
 
         List<DocumentSnapshot<Map<String, dynamic>>> news =
             (await FirestoreUtil()
@@ -707,6 +729,13 @@ class DataLocalForFirestore {
                     .get())
                 .docs;
         if (news.isNotEmpty) {
+          _data.addAll(news.map((e) => DataItem.fromMap({
+                "id": e.id,
+                "data": e.data(),
+                "createdAt": DateTimeUtils.toDateTime(e.data()!['createdAt']),
+                "updatedAt": DateTimeUtils.toDateTime(e.data()!['updatedAt']),
+                "deletedAt": DateTimeUtils.toDateTime(e.data()!['deletedAt']),
+              })));
           for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
@@ -715,22 +744,21 @@ class DataLocalForFirestore {
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
             });
-            try {
-              if (kIsWeb) {
-                _data = _listDataItemAddUpdate([null, data, element])['data'];
-              } else {
-                ReceivePort rPort = ReceivePort();
-                await Isolate.spawn(
-                    _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-                _data = Map<String, dynamic>.from(await rPort.first)['data'];
-                rPort.close();
-              }
-            } catch (e) {
-              _log("newStream error(1) : $e");
-              //
-            }
+            // try {
+            //   if (kIsWeb) {
+            //     _data = _listDataItemAddUpdate([null, data, element])['data'];
+            //   } else {
+            //     ReceivePort rPort = ReceivePort();
+            //     await Isolate.spawn(
+            //         _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+            //     _data = Map<String, dynamic>.from(await rPort.first)['data'];
+            //     rPort.close();
+            //   }
+            // } catch (e) {
+            //   _log("newStream error(1) : $e");
+            //   //
+            // }
 
-            SharedPreferences prefs = await SharedPreferences.getInstance();
             prefs.setString(EncryptUtil().encript(element.id),
                 EncryptUtil().encript(element.toJson()));
             _container.ids.add(doc.id);
