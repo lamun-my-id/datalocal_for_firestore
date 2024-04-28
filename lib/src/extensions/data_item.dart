@@ -18,7 +18,8 @@ extension DataItemExtension on DataItem {
             value = data;
             for (String p in path) {
               if (value[p] is Timestamp) {
-                value = DateTime.fromMillisecondsSinceEpoch(value[p]);
+                value = DateTime.fromMillisecondsSinceEpoch(
+                    value[p].millisecondsSinceEpoch);
               }
               if (value[p] is GeoPoint) {
                 value = {
@@ -28,19 +29,6 @@ extension DataItemExtension on DataItem {
               } else {
                 value = value[p];
               }
-              // switch (value[p].runtimeType) {
-              //   case Timestamp _:
-              //     value = DateTime.fromMillisecondsSinceEpoch(value[p]);
-              //     break;
-              //   case GeoPoint _:
-              //     value = {
-              //       "latitude": value[p].latitude,
-              //       "longitude": value[p].longitude,
-              //     };
-              //     break;
-              //   default:
-              //     value = value[p];
-              // }
             }
           }
       }
@@ -57,12 +45,13 @@ extension DataItemExtension on DataItem {
         if (_ is DateTime) {
           return DateTimeUtils.toDateTime(_).toString();
         } else if (_ is Timestamp) {
-          return DateTimeUtils.toDateTime(_).toString();
+          return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
+              .toString();
         } else if (_ is GeoPoint) {
           return {
             "latitude": _.latitude,
             "longitude": _.longitude,
-          };
+          }.toString();
         } else {
           return "";
         }

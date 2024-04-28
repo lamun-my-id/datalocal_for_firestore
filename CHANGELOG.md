@@ -1,3 +1,7 @@
+## 1.0.13
+* fix data update
+* improvemente stream data
+
 ## 1.0.12
 * improvements sync
 * fix tipedata for firestore

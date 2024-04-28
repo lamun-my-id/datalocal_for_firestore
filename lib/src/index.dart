@@ -80,8 +80,8 @@ class DataLocalForFirestore {
 
   List<DataItem> _data = [];
   List<DataItem> get data => _data;
-  late DateTime _lastNewestCheck;
-  late DateTime _lastUpdateCheck;
+  DateTime? _lastNewestCheck;
+  DateTime? _lastUpdateCheck;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newStream;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _updateStream;
@@ -154,19 +154,22 @@ class DataLocalForFirestore {
   }
 
   Future<void> _streamNew() async {
-    try {
-      List<DataItem> a = await find(
-        sorts: [
-          DataSort(key: "createdAt", desc: true),
-        ],
-      );
-      if (a.isNotEmpty) {
-        _lastNewestCheck = DateTimeUtils.toDateTime(a.first.get('createdAt'))!;
-      } else {
-        _lastNewestCheck = DateTime(2000);
+    if (_lastNewestCheck == null) {
+      try {
+        List<DataItem> a = await find(
+          sorts: [
+            DataSort(key: "createdAt", desc: true),
+          ],
+        );
+        if (a.isNotEmpty) {
+          _lastNewestCheck =
+              DateTimeUtils.toDateTime(a.first.get('createdAt'))!;
+        } else {
+          _lastNewestCheck = DateTime(2000);
+        }
+      } catch (e) {
+        //
       }
-    } catch (e) {
-      //
     }
     try {
       List<DataFilter>? filterUpdate = [];
@@ -181,7 +184,7 @@ class DataLocalForFirestore {
       }
       filterUpdate.add(DataFilter(
         key: "createdAt",
-        value: _lastNewestCheck.add(const Duration(seconds: 1)),
+        value: _lastNewestCheck,
         operator: DataFilterOperator.isGreaterThan,
       ));
       _newStream = FirestoreUtil()
@@ -236,8 +239,8 @@ class DataLocalForFirestore {
           _data = await find(sorts: _sorts, filters: _filters);
           refresh();
           _log("ada data baru menyimpan state");
-
-          _lastNewestCheck = DateTime.now();
+          _lastUpdateCheck =
+              DateTimeUtils.toDateTime(event.docs.first.data()['createdAt']);
           await _saveState();
           _count = data.length;
           _newStream?.cancel();
@@ -252,21 +255,28 @@ class DataLocalForFirestore {
   }
 
   Future<void> _streamUpdate() async {
-    try {
-      List<DataItem> a = await find(
-        sorts: [
-          DataSort(key: "updatedAt", desc: true),
-        ],
-      );
-      if (a.isNotEmpty) {
-        _lastUpdateCheck = DateTimeUtils.toDateTime(a.first.get('updatedAt'))!;
-      } else {
-        _lastUpdateCheck = DateTime.now();
-        // _log("object gak ada last update");
+    if (_lastUpdateCheck == null) {
+      try {
+        List<DataItem> a = await find(
+          sorts: [
+            DataSort(key: "updatedAt", desc: true),
+          ],
+        );
+        if (a.isNotEmpty) {
+          _log(a.first.id);
+          _lastUpdateCheck =
+              DateTimeUtils.toDateTime(a.first.get('updatedAt'))!;
+        } else {
+          _lastUpdateCheck = DateTime.now();
+          // _log("object gak ada last update");
+        }
+      } catch (e) {
+        _log(e);
+        //
       }
-    } catch (e) {
-      //
     }
+
+    _log(_lastUpdateCheck);
 
     try {
       List<DataFilter>? filterUpdate = [];
@@ -281,7 +291,7 @@ class DataLocalForFirestore {
       }
       filterUpdate.add(DataFilter(
         key: "updatedAt",
-        value: _lastUpdateCheck.add(const Duration(seconds: 1)),
+        value: _lastUpdateCheck,
         operator: DataFilterOperator.isGreaterThan,
       ));
       // _log('start stream $collectionPath');
@@ -301,7 +311,6 @@ class DataLocalForFirestore {
         // _log('listen stream $collectionPath');
         if (event.docs.isNotEmpty) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
-          _log('ada data update ');
           _data.addAll(event.docs.map((e) => DataItem.fromMap({
                 "id": e.id,
                 "data": e.data(),
@@ -344,7 +353,8 @@ class DataLocalForFirestore {
           }
           _data = await find(sorts: _sorts, filters: _filters);
           refresh();
-          _lastUpdateCheck = DateTime.now();
+          _lastUpdateCheck =
+              DateTimeUtils.toDateTime(event.docs.first.data()['updatedAt']);
           _log("menyimpan state baru");
           await _saveState();
           _updateStream?.cancel();
