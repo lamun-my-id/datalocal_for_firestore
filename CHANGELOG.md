@@ -1,3 +1,9 @@
+## 1.0.14
+* fix bug sync
+* fix force close on big data
+* fix database loading
+
+
 ## 1.0.13
 * fix data update
 * improvemente stream data

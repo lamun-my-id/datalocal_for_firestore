@@ -134,7 +134,7 @@ class DataLocalForFirestore {
         if (_container.ids.isNotEmpty) {
           _log("Data item ada mulai loadstate");
           _loadState().then((value) {
-            _syncCount();
+            _sync();
             _stream();
           });
         } else {
@@ -239,7 +239,7 @@ class DataLocalForFirestore {
           _data = await find(sorts: _sorts, filters: _filters);
           refresh();
           _log("ada data baru menyimpan state");
-          _lastUpdateCheck =
+          _lastNewestCheck =
               DateTimeUtils.toDateTime(event.docs.first.data()['createdAt']);
           await _saveState();
           _count = data.length;
@@ -410,36 +410,40 @@ class DataLocalForFirestore {
     _isLoading = true;
     refresh();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-
+    List<DataItem> result = [];
     for (int index = 0; index < _container.ids.length; index++) {
       String id = _container.ids[index];
       String? ref = prefs.getString(EncryptUtil().encript(id));
       if (ref == null) {
         // Tidak ada data yang disimpan
       } else {
-        if (kIsWeb) {
-          _data = _listDataItemAddUpdate([
-            null,
-            data,
-            DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref)))
-          ])['data'];
-        } else {
-          ReceivePort rPort = ReceivePort();
-          await Isolate.spawn(_listDataItemAddUpdate, [
-            rPort.sendPort,
-            data,
-            DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref)))
-          ]);
-          _data = Map<String, dynamic>.from(await rPort.first)['data'];
-          rPort.close();
-        }
+        result.add(DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref))));
+        // if (kIsWeb) {
+        //   _data = _listDataItemAddUpdate([
+        //     null,
+        //     data,
+        //     DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref)))
+        //   ])['data'];
+        // } else {
+        //   ReceivePort rPort = ReceivePort();
+        //   await Isolate.spawn(_listDataItemAddUpdate, [
+        //     rPort.sendPort,
+        //     data,
+        //     DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref)))
+        //   ]);
+        //   _data = Map<String, dynamic>.from(await rPort.first)['data'];
+        //   rPort.close();
+        // }
         if ((index + 1) % _size == 0) {
+          _data.addAll(result);
+          result = [];
           _isLoading = false;
           refresh();
         }
         // _data.add(DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref))));
       }
     }
+    _data.addAll(result);
     _count = data.length;
     _log('load state complete');
     refresh();
