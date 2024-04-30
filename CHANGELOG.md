@@ -1,3 +1,8 @@
+## 1.0.15
+* add data key
+* add oncatch data key
+* fix loading
+
 ## 1.0.14
 * fix bug sync
 * fix force close on big data

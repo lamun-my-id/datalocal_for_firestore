@@ -1,6 +1,5 @@
 // import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 // import 'package:example/dl.dart';
@@ -55,8 +54,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   openForm(DataItem value) {
     selectedData = value;
-    titleController.text = value.get('title');
-    contentController.text = value.get("content");
+    titleController.text = value.get(DataKey('title'));
+    contentController.text = value.get(DataKey("content"));
     setState(() {});
   }
 
@@ -144,9 +143,16 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {});
       },
       debugMode: true,
+      sorts: [
+        DataSort(key: DataKey("updatedAt")),
+      ],
     );
-    notesDataLocal.onRefresh = () {
-      notes = notesDataLocal.data;
+    notesDataLocal.onRefresh = () async {
+      notes = await notesDataLocal.find(
+        sorts: [
+          DataSort(key: DataKey("updatedAt", onKeyCatch: "createdAt")),
+        ],
+      );
       // for (DataItem note in notes) {
       //   print("========================${note.updatedAt}-${note.get("title")}");
       // }
@@ -176,20 +182,20 @@ class _MyHomePageState extends State<MyHomePage> {
         height: MediaQuery.of(context).size.height,
         child: Column(
           children: [
-            StreamBuilder(
-              stream:
-                  FirebaseFirestore.instance.collection("notes").snapshots(),
-              builder: (_, snapshot) {
-                if (!snapshot.hasData) {
-                  return const SizedBox(
-                    child: Text("Loading"),
-                  );
-                } else {
-                  return Text("${snapshot.data!.docs.length}");
-                }
-              },
-            ),
-            Text(notesDataLocal.data.length.toString()),
+            // StreamBuilder(
+            //   stream:
+            //       FirebaseFirestore.instance.collection("notes").snapshots(),
+            //   builder: (_, snapshot) {
+            //     if (!snapshot.hasData) {
+            //       return const SizedBox(
+            //         child: Text("Loading"),
+            //       );
+            //     } else {
+            //       return Text("${snapshot.data!.docs.length}");
+            //     }
+            //   },
+            // ),
+            // Text(notesDataLocal.data.length.toString()),
             Expanded(
               flex: 5,
               child: Builder(
@@ -201,6 +207,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   }
                   return Column(
                     children: [
+                      Text(notesDataLocal.count.toString()),
                       Expanded(
                         child: ListView.builder(
                           padding: const EdgeInsets.symmetric(
@@ -209,7 +216,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           itemCount: notesDataLocal.count,
                           itemBuilder: (_, index) {
-                            DataItem data = notesDataLocal.data[index];
+                            DataItem data = notes[index];
                             return Padding(
                               padding: const EdgeInsets.symmetric(
                                 vertical: 4,
@@ -233,7 +240,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       SizedBox(
                                         width: width,
                                         child: Text(
-                                          data.get("title"),
+                                          data.get(DataKey("title")),
                                           style: const TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -241,12 +248,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                         ),
                                       ),
                                       Text(
-                                        data.get("content"),
+                                        data.get(DataKey("content")),
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
-                                          "${data.get("createdAt") ?? data.get("updatedAt")}")
+                                          "${data.get(DataKey("updatedAt", onKeyCatch: "createdAt")) ?? "-"}")
                                       // Text(
                                       //   DateTimeUtils.dateFormat(
                                       //           data.get("createdAt")) ??

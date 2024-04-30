@@ -5,16 +5,16 @@ import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 
 extension DataItemExtension on DataItem {
-  dynamic get(String key) {
+  dynamic get(DataKey key) {
     try {
       dynamic value = {};
-      switch (key) {
+      switch (key.key) {
         case "#id":
           value = id;
           break;
         default:
           {
-            List<String> path = key.split(".");
+            List<String> path = key.key.split(".");
             value = data;
             for (String p in path) {
               if (value[p] is Timestamp) {
@@ -32,8 +32,13 @@ extension DataItemExtension on DataItem {
             }
           }
       }
+      if (value == null) throw "value null";
+
       return value;
     } catch (e) {
+      if (key.onKeyCatch != null) {
+        return get(DataKey(key.onKeyCatch!));
+      }
       return null;
     }
   }

@@ -73,8 +73,8 @@ class DataLocalForFirestore {
   int _count = 0;
   int get count => _count;
 
-  int _actualCount = 0;
-  int get actualCount => _actualCount;
+  // int _actualCount = 0;
+  // int get actualCount => _actualCount;
 
   late DataContainer _container;
 
@@ -158,12 +158,12 @@ class DataLocalForFirestore {
       try {
         List<DataItem> a = await find(
           sorts: [
-            DataSort(key: "createdAt", desc: true),
+            DataSort(key: DataKey("createdAt"), desc: true),
           ],
         );
         if (a.isNotEmpty) {
           _lastNewestCheck =
-              DateTimeUtils.toDateTime(a.first.get('createdAt'))!;
+              DateTimeUtils.toDateTime(a.first.get(DataKey('createdAt')))!;
         } else {
           _lastNewestCheck = DateTime(2000);
         }
@@ -175,15 +175,15 @@ class DataLocalForFirestore {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key != "updatedAt" &&
-              filter.key != "createdAt" &&
-              filter.key != 'deletedAt') {
+          if (filter.key.key != "updatedAt" &&
+              filter.key.key != "createdAt" &&
+              filter.key.key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
       }
       filterUpdate.add(DataFilter(
-        key: "createdAt",
+        key: DataKey("createdAt"),
         value: _lastNewestCheck,
         operator: DataFilterOperator.isGreaterThan,
       ));
@@ -192,7 +192,7 @@ class DataLocalForFirestore {
             _collectionPath,
             sorts: [
               DataSort(
-                key: "createdAt",
+                key: DataKey("createdAt"),
                 desc: true,
               ),
             ],
@@ -259,13 +259,13 @@ class DataLocalForFirestore {
       try {
         List<DataItem> a = await find(
           sorts: [
-            DataSort(key: "updatedAt", desc: true),
+            DataSort(key: DataKey("updatedAt"), desc: true),
           ],
         );
         if (a.isNotEmpty) {
           _log(a.first.id);
           _lastUpdateCheck =
-              DateTimeUtils.toDateTime(a.first.get('updatedAt'))!;
+              DateTimeUtils.toDateTime(a.first.get(DataKey('updatedAt')))!;
         } else {
           _lastUpdateCheck = DateTime.now();
           // _log("object gak ada last update");
@@ -282,15 +282,15 @@ class DataLocalForFirestore {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key != "updatedAt" &&
-              filter.key != "createdAt" &&
-              filter.key != 'deletedAt') {
+          if (filter.key.key != "updatedAt" &&
+              filter.key.key != "createdAt" &&
+              filter.key.key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
       }
       filterUpdate.add(DataFilter(
-        key: "updatedAt",
+        key: DataKey("updatedAt"),
         value: _lastUpdateCheck,
         operator: DataFilterOperator.isGreaterThan,
       ));
@@ -300,7 +300,7 @@ class DataLocalForFirestore {
             _collectionPath,
             sorts: [
               DataSort(
-                key: "updatedAt",
+                key: DataKey("updatedAt"),
                 desc: true,
               ),
             ],
@@ -311,13 +311,13 @@ class DataLocalForFirestore {
         // _log('listen stream $collectionPath');
         if (event.docs.isNotEmpty) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
-          _data.addAll(event.docs.map((e) => DataItem.fromMap({
-                "id": e.id,
-                "data": e.data(),
-                "createdAt": DateTimeUtils.toDateTime(e.data()['createdAt']),
-                "updatedAt": DateTimeUtils.toDateTime(e.data()['updatedAt']),
-                "deletedAt": DateTimeUtils.toDateTime(e.data()['deletedAt']),
-              })));
+          // _data.addAll(event.docs.map((e) => DataItem.fromMap({
+          //       "id": e.id,
+          //       "data": e.data(),
+          //       "createdAt": DateTimeUtils.toDateTime(e.data()['createdAt']),
+          //       "updatedAt": DateTimeUtils.toDateTime(e.data()['updatedAt']),
+          //       "deletedAt": DateTimeUtils.toDateTime(e.data()['deletedAt']),
+          //     })));
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
@@ -330,19 +330,19 @@ class DataLocalForFirestore {
 
             try {
               // await Future.delayed(const Duration(seconds: 2));
-              // if (kIsWeb) {
-              //   _data = _listDataItemAddUpdate([null, data, element])['data'];
-              // } else {
-              //   ReceivePort rPort = ReceivePort();
-              //   await Isolate.spawn(
-              //       _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-              //   _data = Map<String, dynamic>.from(await rPort.first)['data'];
-              //   // _log("simpan data");
-              //   // for (DataItem d in _data) {
-              //   //   _log(d.updatedAt);
-              //   // }
-              //   rPort.close();
-              // }
+              if (kIsWeb) {
+                _data = _listDataItemAddUpdate([null, data, element])['data'];
+              } else {
+                ReceivePort rPort = ReceivePort();
+                await Isolate.spawn(
+                    _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+                _data = Map<String, dynamic>.from(await rPort.first)['data'];
+                // _log("simpan data");
+                // for (DataItem d in _data) {
+                //   _log(d.updatedAt);
+                // }
+                rPort.close();
+              }
 
               prefs.setString(EncryptUtil().encript(element.id),
                   EncryptUtil().encript(element.toJson()));
@@ -357,6 +357,7 @@ class DataLocalForFirestore {
               DateTimeUtils.toDateTime(event.docs.first.data()['updatedAt']);
           _log("menyimpan state baru");
           await _saveState();
+          _count = _data.length;
           _updateStream?.cancel();
           _streamUpdate();
         } else {
@@ -558,13 +559,12 @@ class DataLocalForFirestore {
         rPort.close();
       }
       _data = res['data'];
-      _count = data.length;
     } catch (e, st) {
       _log('findAsync Isolate.spawn $e, $st');
     }
 
     List<DataItem> d = await find(
-      filters: [DataFilter(key: "#id", value: id)],
+      filters: [DataFilter(key: DataKey("#id"), value: id)],
     );
     if (d.isEmpty) {
       throw "Tidak ada data";
@@ -590,7 +590,7 @@ class DataLocalForFirestore {
     String id,
   ) async {
     List<DataItem> d = await find(
-      filters: [DataFilter(key: "#id", value: id)],
+      filters: [DataFilter(key: DataKey("#id"), value: id)],
     );
 
     FirestoreUtil().update(collectionPath, id: id, value: d.first.data);
@@ -634,7 +634,7 @@ class DataLocalForFirestore {
       QuerySnapshot<Map<String, dynamic>> query = await FirestoreUtil()
           .queryBuilder(
             _collectionPath,
-            sorts: [DataSort(key: "createdAt", desc: true)],
+            sorts: [DataSort(key: DataKey("createdAt"), desc: true)],
             filters: _filters,
             limit: _size,
           )
@@ -702,11 +702,11 @@ class DataLocalForFirestore {
         DateTime date = DateTime(2000);
         List<DataItem> a = await find(
           sorts: [
-            DataSort(key: "createdAt", desc: false),
+            DataSort(key: DataKey("createdAt"), desc: false),
           ],
         );
         if (a.isNotEmpty) {
-          date = DateTimeUtils.toDateTime(a.first.get('createdAt'))!;
+          date = DateTimeUtils.toDateTime(a.first.get(DataKey('createdAt')))!;
         } else {
           date = DateTime(2000);
         }
@@ -714,15 +714,15 @@ class DataLocalForFirestore {
         List<DataFilter>? filterNews = [];
         if (_filters != null) {
           for (DataFilter filter in _filters!) {
-            if (filter.key != "updatedAt" &&
-                filter.key != "createdAt" &&
-                filter.key != 'deletedAt') {
+            if (filter.key.key != "updatedAt" &&
+                filter.key.key != "createdAt" &&
+                filter.key.key != 'deletedAt') {
               filterNews.add(filter);
             }
           }
         }
         filterNews.add(DataFilter(
-          key: "createdAt",
+          key: DataKey("createdAt"),
           value: date,
           operator: DataFilterOperator.isLessThan,
         ));
@@ -734,7 +734,7 @@ class DataLocalForFirestore {
                       collectionPath,
                       sorts: [
                         DataSort(
-                          key: "createdAt",
+                          key: DataKey("createdAt"),
                           desc: true,
                         ),
                       ],
@@ -794,11 +794,11 @@ class DataLocalForFirestore {
         DateTime date = DateTime(2000);
         List<DataItem> a = await find(
           sorts: [
-            DataSort(key: "createdAt", desc: true),
+            DataSort(key: DataKey("createdAt"), desc: true),
           ],
         );
         if (a.isNotEmpty) {
-          date = DateTimeUtils.toDateTime(a.first.get('createdAt'))!;
+          date = DateTimeUtils.toDateTime(a.first.get(DataKey('createdAt')))!;
         } else {
           date = DateTime(2000);
         }
@@ -806,15 +806,15 @@ class DataLocalForFirestore {
         List<DataFilter>? filterNews = [];
         if (_filters != null) {
           for (DataFilter filter in _filters!) {
-            if (filter.key != "updatedAt" &&
-                filter.key != "createdAt" &&
-                filter.key != 'deletedAt') {
+            if (filter.key.key != "updatedAt" &&
+                filter.key.key != "createdAt" &&
+                filter.key.key != 'deletedAt') {
               filterNews.add(filter);
             }
           }
         }
         filterNews.add(DataFilter(
-          key: "createdAt",
+          key: DataKey("createdAt"),
           value: date,
           operator: DataFilterOperator.isGreaterThan,
         ));
@@ -825,7 +825,7 @@ class DataLocalForFirestore {
                       collectionPath,
                       sorts: [
                         DataSort(
-                          key: "createdAt",
+                          key: DataKey("createdAt"),
                           desc: true,
                         ),
                       ],
@@ -878,18 +878,18 @@ class DataLocalForFirestore {
     }
   }
 
-  Future<void> _syncCount() async {
-    _actualCount = _count = (await FirestoreUtil()
-                .queryBuilder(_collectionPath,
-                    sorts: _sorts, filters: _filters, isCount: true)
-                .count()
-                .get())
-            .count ??
-        0;
-    if (_actualCount != count) {
-      _sync();
-    }
-  }
+  // Future<void> _syncCount() async {
+  //   _actualCount = _count = (await FirestoreUtil()
+  //               .queryBuilder(_collectionPath,
+  //                   sorts: _sorts, filters: _filters, isCount: true)
+  //               .count()
+  //               .get())
+  //           .count ??
+  //       0;
+  //   if (_actualCount != count) {
+  //     _sync();
+  //   }
+  // }
 
   /// Start from initialize, save state will not deleted
   // Future<void> reboot() async {
@@ -985,15 +985,16 @@ dynamic _listDataItemFind(List<dynamic> args) {
   List<DataSort>? sorts = args[3];
   DataSearch? search = args[4];
 
-  if (filters != null) {
-    result = result.filterData(filters);
-  }
   if (sorts != null) {
     result = result.sortData(sorts);
   }
   if (search != null) {
     result = result.searchData(search);
   }
+  if (filters != null) {
+    result = result.filterData(filters);
+  }
+
   // _log(result.length.toString());
   if (kIsWeb) {
     return {"data": result, "count": result.length};

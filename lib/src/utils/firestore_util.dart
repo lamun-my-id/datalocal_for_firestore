@@ -22,40 +22,40 @@ class FirestoreUtil {
           DataFilter f = filters[i];
           switch (f.operator) {
             case DataFilterOperator.isEqualTo:
-              q = q.where(f.key, isEqualTo: f.value);
+              q = q.where(f.key.key, isEqualTo: f.value);
               break;
             case DataFilterOperator.isNotEqualTo:
-              q = q.where(f.key, isNotEqualTo: f.value);
+              q = q.where(f.key.key, isNotEqualTo: f.value);
               break;
             case DataFilterOperator.isGreaterThanOrEqualTo:
-              q = q.where(f.key, isGreaterThanOrEqualTo: f.value);
+              q = q.where(f.key.key, isGreaterThanOrEqualTo: f.value);
               break;
             case DataFilterOperator.isGreaterThan:
-              q = q.where(f.key, isGreaterThan: f.value);
+              q = q.where(f.key.key, isGreaterThan: f.value);
               break;
             case DataFilterOperator.isLessThanOrEqualTo:
-              q = q.where(f.key, isLessThanOrEqualTo: f.value);
+              q = q.where(f.key.key, isLessThanOrEqualTo: f.value);
               break;
             case DataFilterOperator.isLessThan:
-              q = q.where(f.key, isLessThan: f.value);
+              q = q.where(f.key.key, isLessThan: f.value);
               break;
             case DataFilterOperator.whereIn:
-              q = q.where(f.key, whereIn: f.value);
+              q = q.where(f.key.key, whereIn: f.value);
               break;
             case DataFilterOperator.whereNotIn:
-              q = q.where(f.key, whereNotIn: f.value);
+              q = q.where(f.key.key, whereNotIn: f.value);
               break;
             case DataFilterOperator.arrayContains:
-              q = q.where(f.key, arrayContains: f.value);
+              q = q.where(f.key.key, arrayContains: f.value);
               break;
             case DataFilterOperator.arrayContainsAny:
-              q = q.where(f.key, arrayContainsAny: f.value);
+              q = q.where(f.key.key, arrayContainsAny: f.value);
               break;
             case DataFilterOperator.isNull:
-              q = q.where(f.key, isNull: f.value);
+              q = q.where(f.key.key, isNull: f.value);
               break;
             default:
-              q = q.where(f.key, isEqualTo: f.value);
+              q = q.where(f.key.key, isEqualTo: f.value);
               break;
           }
         }
@@ -64,7 +64,7 @@ class FirestoreUtil {
       if (sorts != null && sorts.isNotEmpty) {
         for (DataSort sort in sorts) {
           q = q.orderBy(
-            sort.key,
+            sort.key.key,
             descending: sort.desc == true,
           );
         }

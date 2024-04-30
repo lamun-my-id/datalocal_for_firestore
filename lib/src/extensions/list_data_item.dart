@@ -195,7 +195,7 @@ extension ListDataItem on List<DataItem> {
     if (parameter.keys != null && parameter.value != null) {
       for (DataItem data in this) {
         String validator = "";
-        for (String key in parameter.keys!) {
+        for (DataKey key in parameter.keys!) {
           validator += data.get(key) ?? "";
         }
         // final RegExp filterRegExp =
