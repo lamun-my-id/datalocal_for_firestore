@@ -1,3 +1,9 @@
+## 1.0.17
+* fix geopoint
+
+## 1.0.16
+* fix geopoint
+
 ## 1.0.15
 * add data key
 * add oncatch data key

@@ -1,7 +1,11 @@
 // import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
+// import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 // import 'package:example/dl.dart';
 // import 'package:datalocal/datalocal.dart';
 import 'package:example/firebase_options.dart';
@@ -54,8 +58,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   openForm(DataItem value) {
     selectedData = value;
-    titleController.text = value.get(DataKey('title'));
-    contentController.text = value.get(DataKey("content"));
+    // titleController.text = value.get(DataKey('title'));
+    // contentController.text = value.get(DataKey("content"));
     setState(() {});
   }
 
@@ -182,6 +186,35 @@ class _MyHomePageState extends State<MyHomePage> {
         height: MediaQuery.of(context).size.height,
         child: Column(
           children: [
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream:
+                      FirebaseFirestore.instance.collection("locs").snapshots(),
+                  builder: (_, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Text("Loading");
+                    }
+                    return SingleChildScrollView(
+                      child: Column(
+                        children:
+                            List.generate(snapshot.data!.docs.length, (index) {
+                          DocumentSnapshot<Map<String, dynamic>> e =
+                              snapshot.data!.docs[index];
+
+                          DataItem d = DataItem().setFromDoc(e);
+                          return Column(
+                            children: [
+                              Text(e.id),
+                              Text(e.data()!['geo'].toString()),
+                              Text(d.id),
+                              Text(d.get(DataKey("geo.latitude")).toString()),
+                            ],
+                          );
+                        }),
+                      ),
+                    );
+                  }),
+            ),
             // StreamBuilder(
             //   stream:
             //       FirebaseFirestore.instance.collection("notes").snapshots(),
@@ -196,228 +229,228 @@ class _MyHomePageState extends State<MyHomePage> {
             //   },
             // ),
             // Text(notesDataLocal.data.length.toString()),
-            Expanded(
-              flex: 5,
-              child: Builder(
-                builder: (_) {
-                  if (isLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  }
-                  return Column(
-                    children: [
-                      Text(notesDataLocal.count.toString()),
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          itemCount: notesDataLocal.count,
-                          itemBuilder: (_, index) {
-                            DataItem data = notes[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              child: InkWell(
-                                onTap: () => openForm(data),
-                                child: Container(
-                                  width: width,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      SizedBox(
-                                        width: width,
-                                        child: Text(
-                                          data.get(DataKey("title")),
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        data.get(DataKey("content")),
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                          "${data.get(DataKey("updatedAt", onKeyCatch: "createdAt")) ?? "-"}")
-                                      // Text(
-                                      //   DateTimeUtils.dateFormat(
-                                      //           data.get("createdAt")) ??
-                                      //       "",
-                                      //   overflow: TextOverflow.ellipsis,
-                                      //   style: const TextStyle(
-                                      //     fontSize: 12,
-                                      //   ),
-                                      // ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            Expanded(
-              flex: 5,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    top: BorderSide(),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: width,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                              ),
-                              child: const Text(
-                                "Title",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                            TextField(
-                              controller: titleController,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                            Container(
-                              width: width,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                              ),
-                              child: const Text(
-                                "Content",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                            TextField(
-                              controller: contentController,
-                              minLines: 4,
-                              maxLines: 100,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Container(
-                      height: 60,
-                      width: width,
-                      color: Colors.grey[50],
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (selectedData != null)
-                            InkWell(
-                              onTap: () => delete(),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  "Delete",
-                                  style: TextStyle(
-                                      // color: Colors.white,
-                                      ),
-                                ),
-                              ),
-                            ),
-                          const Expanded(child: SizedBox()),
-                          if (selectedData != null)
-                            InkWell(
-                              onTap: () => closeForm(),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  "Cancel",
-                                  style: TextStyle(
-                                      // color: Colors.white,
-                                      ),
-                                ),
-                              ),
-                            ),
-                          const SizedBox(
-                            width: 16,
-                          ),
-                          InkWell(
-                            onTap: () => save(),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.deepPurple,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                "Save",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // Expanded(
+            //   flex: 5,
+            //   child: Builder(
+            //     builder: (_) {
+            //       if (isLoading) {
+            //         return const Center(
+            //           child: CircularProgressIndicator(),
+            //         );
+            //       }
+            //       return Column(
+            //         children: [
+            //           Text(notesDataLocal.count.toString()),
+            //           Expanded(
+            //             child: ListView.builder(
+            //               padding: const EdgeInsets.symmetric(
+            //                 horizontal: 16,
+            //                 vertical: 8,
+            //               ),
+            //               itemCount: notesDataLocal.count,
+            //               itemBuilder: (_, index) {
+            //                 DataItem data = notes[index];
+            //                 return Padding(
+            //                   padding: const EdgeInsets.symmetric(
+            //                     vertical: 4,
+            //                   ),
+            //                   child: InkWell(
+            //                     onTap: () => openForm(data),
+            //                     child: Container(
+            //                       width: width,
+            //                       padding: const EdgeInsets.symmetric(
+            //                         horizontal: 16,
+            //                         vertical: 16,
+            //                       ),
+            //                       decoration: BoxDecoration(
+            //                         color: Colors.white,
+            //                         borderRadius: BorderRadius.circular(10),
+            //                       ),
+            //                       child: Column(
+            //                         crossAxisAlignment:
+            //                             CrossAxisAlignment.start,
+            //                         children: [
+            //                           SizedBox(
+            //                             width: width,
+            //                             child: Text(
+            //                               data.get(DataKey("title")),
+            //                               style: const TextStyle(
+            //                                 fontSize: 16,
+            //                                 fontWeight: FontWeight.w600,
+            //                               ),
+            //                             ),
+            //                           ),
+            //                           Text(
+            //                             data.get(DataKey("content")),
+            //                             maxLines: 3,
+            //                             overflow: TextOverflow.ellipsis,
+            //                           ),
+            //                           Text(
+            //                               "${data.get(DataKey("updatedAt", onKeyCatch: "createdAt")) ?? "-"}")
+            //                           // Text(
+            //                           //   DateTimeUtils.dateFormat(
+            //                           //           data.get("createdAt")) ??
+            //                           //       "",
+            //                           //   overflow: TextOverflow.ellipsis,
+            //                           //   style: const TextStyle(
+            //                           //     fontSize: 12,
+            //                           //   ),
+            //                           // ),
+            //                         ],
+            //                       ),
+            //                     ),
+            //                   ),
+            //                 );
+            //               },
+            //             ),
+            //           ),
+            //         ],
+            //       );
+            //     },
+            //   ),
+            // ),
+            // Expanded(
+            //   flex: 5,
+            //   child: Container(
+            //     decoration: const BoxDecoration(
+            //       color: Colors.white,
+            //       border: Border(
+            //         top: BorderSide(),
+            //       ),
+            //     ),
+            //     child: Column(
+            //       children: [
+            //         Expanded(
+            //           child: SingleChildScrollView(
+            //             padding: const EdgeInsets.symmetric(
+            //               horizontal: 16,
+            //               vertical: 16,
+            //             ),
+            //             child: Column(
+            //               children: [
+            //                 Container(
+            //                   width: width,
+            //                   padding: const EdgeInsets.symmetric(
+            //                     vertical: 16,
+            //                   ),
+            //                   child: const Text(
+            //                     "Title",
+            //                     style: TextStyle(
+            //                       fontSize: 18,
+            //                     ),
+            //                   ),
+            //                 ),
+            //                 TextField(
+            //                   controller: titleController,
+            //                   decoration: const InputDecoration(
+            //                     border: OutlineInputBorder(),
+            //                   ),
+            //                 ),
+            //                 Container(
+            //                   width: width,
+            //                   padding: const EdgeInsets.symmetric(
+            //                     vertical: 16,
+            //                   ),
+            //                   child: const Text(
+            //                     "Content",
+            //                     style: TextStyle(
+            //                       fontSize: 18,
+            //                     ),
+            //                   ),
+            //                 ),
+            //                 TextField(
+            //                   controller: contentController,
+            //                   minLines: 4,
+            //                   maxLines: 100,
+            //                   decoration: const InputDecoration(
+            //                     border: OutlineInputBorder(),
+            //                   ),
+            //                 ),
+            //               ],
+            //             ),
+            //           ),
+            //         ),
+            //         Container(
+            //           height: 60,
+            //           width: width,
+            //           color: Colors.grey[50],
+            //           padding: const EdgeInsets.symmetric(
+            //             horizontal: 16,
+            //           ),
+            //           child: Row(
+            //             crossAxisAlignment: CrossAxisAlignment.center,
+            //             mainAxisAlignment: MainAxisAlignment.end,
+            //             children: [
+            //               if (selectedData != null)
+            //                 InkWell(
+            //                   onTap: () => delete(),
+            //                   child: Container(
+            //                     padding: const EdgeInsets.symmetric(
+            //                       horizontal: 16,
+            //                       vertical: 8,
+            //                     ),
+            //                     decoration: BoxDecoration(
+            //                       color: Colors.grey[200],
+            //                       borderRadius: BorderRadius.circular(4),
+            //                     ),
+            //                     child: const Text(
+            //                       "Delete",
+            //                       style: TextStyle(
+            //                           // color: Colors.white,
+            //                           ),
+            //                     ),
+            //                   ),
+            //                 ),
+            //               const Expanded(child: SizedBox()),
+            //               if (selectedData != null)
+            //                 InkWell(
+            //                   onTap: () => closeForm(),
+            //                   child: Container(
+            //                     padding: const EdgeInsets.symmetric(
+            //                       horizontal: 16,
+            //                       vertical: 8,
+            //                     ),
+            //                     decoration: BoxDecoration(
+            //                       color: Colors.grey[200],
+            //                       borderRadius: BorderRadius.circular(4),
+            //                     ),
+            //                     child: const Text(
+            //                       "Cancel",
+            //                       style: TextStyle(
+            //                           // color: Colors.white,
+            //                           ),
+            //                     ),
+            //                   ),
+            //                 ),
+            //               const SizedBox(
+            //                 width: 16,
+            //               ),
+            //               InkWell(
+            //                 onTap: () => save(),
+            //                 child: Container(
+            //                   padding: const EdgeInsets.symmetric(
+            //                     horizontal: 16,
+            //                     vertical: 8,
+            //                   ),
+            //                   decoration: BoxDecoration(
+            //                     color: Colors.deepPurple,
+            //                     borderRadius: BorderRadius.circular(4),
+            //                   ),
+            //                   child: const Text(
+            //                     "Save",
+            //                     style: TextStyle(
+            //                       color: Colors.white,
+            //                     ),
+            //                   ),
+            //                 ),
+            //               ),
+            //             ],
+            //           ),
+            //         ),
+            //       ],
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
