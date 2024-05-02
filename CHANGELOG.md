@@ -1,3 +1,6 @@
+## 1.0.18
+* fix geopoint
+
 ## 1.0.17
 * fix geopoint
 

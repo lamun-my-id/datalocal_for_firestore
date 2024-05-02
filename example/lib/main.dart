@@ -207,7 +207,9 @@ class _MyHomePageState extends State<MyHomePage> {
                               Text(e.id),
                               Text(e.data()!['geo'].toString()),
                               Text(d.id),
-                              Text(d.get(DataKey("geo.latitude")).toString()),
+                              Text(DataItem.fromMap(jsonDecode(d.toJson()))
+                                  .get(DataKey("geo.latitude"))
+                                  .toString()),
                             ],
                           );
                         }),

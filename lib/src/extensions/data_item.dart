@@ -64,10 +64,10 @@ extension DataItemExtension on DataItem {
           return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
               .toString();
         } else if (_ is GeoPoint) {
-          return jsonEncode({
+          return {
             "latitude": _.latitude,
             "longitude": _.longitude,
-          });
+          };
         } else {
           return "";
         }
