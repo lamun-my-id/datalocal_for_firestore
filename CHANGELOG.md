@@ -1,3 +1,6 @@
+## 1.0.19
+* fix sort for DateTime 
+
 ## 1.0.18
 * fix geopoint
 

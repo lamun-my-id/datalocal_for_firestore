@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
 import 'package:datalocal/datalocal.dart';
 import 'package:datalocal_for_firestore/src/extensions/list.dart';
+import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 
 extension ListDataItem on List<DataItem> {
   /// Part Extension of [List<DataItem>] to sort data
@@ -22,6 +24,23 @@ extension ListDataItem on List<DataItem> {
               b = 0;
               return !parameters[i].desc ? a.compareTo(1) : b.compareTo(1);
             }
+          } else if (a is DateTime ||
+              b is DateTime ||
+              a is Timestamp ||
+              b is Timestamp) {
+            a = DateTimeUtils.toDateTime(a);
+            b = DateTimeUtils.toDateTime(b);
+            if (a == null) {
+              a = 1;
+              b = 1;
+              return !parameters[i].desc ? a.compareTo(0) : b.compareTo(0);
+            }
+            if (b == null) {
+              a = 0;
+              b = 0;
+              return !parameters[i].desc ? a.compareTo(1) : b.compareTo(1);
+            }
+            return !parameters[i].desc ? a.compareTo(b) : b.compareTo(a);
           } else {
             return !parameters[i].desc ? a.compareTo(b) : b.compareTo(a);
           }
