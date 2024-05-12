@@ -239,4 +239,13 @@ extension ListDataItem on List<DataItem> {
     result.retainWhere((x) => ids.remove(x.id));
     return result;
   }
+
+  List<DataItem> paginate(int index, {required int size}) {
+    List<List<DataItem>> data = List<List<DataItem>>.from(chunks(size));
+    if (index <= data.length - 1) {
+      return data[index];
+    } else {
+      return [];
+    }
+  }
 }

@@ -1,7 +1,7 @@
 name: datalocal_for_firestore
 description: "Flutter local data with integration with firestore saved with state."
 repository: "https://github.com/lamun-my-id/datalocal_for_firestore.git"
-version: 1.0.19
+version: 1.0.20
 # test    : dart pub publish --dry-run
 # deploy  : dart pub publish 
 
@@ -13,7 +13,7 @@ dependencies:
     sdk: flutter
 
   cloud_firestore: ^4.15.10
-  datalocal: ^1.0.12
+  datalocal: ^1.0.14
   # datalocal:
     # path: ../data-state
   shared_preferences: ^2.2.2
