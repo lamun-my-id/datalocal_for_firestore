@@ -202,33 +202,34 @@ class DataLocalForFirestore {
           .listen((event) async {
         if (event.docs.isNotEmpty) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
-          _data.addAll(event.docs.map((e) => DataItem.fromMap({
-                "id": e.id,
-                "data": e.data(),
-                "createdAt": DateTimeUtils.toDateTime(e.data()['createdAt']),
-                "updatedAt": DateTimeUtils.toDateTime(e.data()['updatedAt']),
-                "deletedAt": DateTimeUtils.toDateTime(e.data()['deletedAt']),
-              })));
+          // _data.addAll(event.docs.map((e) => DataItem.fromMap({
+          //       "id": e.id,
+          //       "data": e.data(),
+          //       "createdAt": DateTimeUtils.toDateTime(e.data()['createdAt']),
+          //       "updatedAt": DateTimeUtils.toDateTime(e.data()['updatedAt']),
+          //       "deletedAt": DateTimeUtils.toDateTime(e.data()['deletedAt']),
+          //     })));
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
               "data": doc.data(),
+              "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
             });
             try {
-              // await Future.delayed(const Duration(seconds: 2));
-              // if (kIsWeb) {
-              //   _data = _listDataItemAddUpdate([null, data, element])['data'];
-              // } else {
-              //   _log("ada update");
-              //   ReceivePort rPort = ReceivePort();
-              //   await Isolate.spawn(
-              //       _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-              //   _data = Map<String, dynamic>.from(await rPort.first)['data'];
-              //   rPort.close();
-              // }
+              await Future.delayed(const Duration(seconds: 2));
+              if (kIsWeb) {
+                _data = _listDataItemAddUpdate([null, data, element])['data'];
+              } else {
+                _log("ada update");
+                ReceivePort rPort = ReceivePort();
+                await Isolate.spawn(
+                    _listDataItemAddUpdate, [rPort.sendPort, data, element]);
+                _data = Map<String, dynamic>.from(await rPort.first)['data'];
+                rPort.close();
+              }
             } catch (e) {
               _log("newStream error(1) : $e");
             }
@@ -322,6 +323,7 @@ class DataLocalForFirestore {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
               "data": doc.data(),
+              "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
@@ -521,7 +523,7 @@ class DataLocalForFirestore {
     DataItem newData = DataItem.create(
       d.id,
       value: d.data(),
-      parent: stateName,
+      parent: collectionPath,
     );
     try {
       _data.insert(0, newData);
@@ -545,7 +547,7 @@ class DataLocalForFirestore {
   }
 
   /// Update to save DataItem
-  Future<DataItem> updateOne(String id,
+  Future<DataItem> updateOneLocal(String id,
       {required Map<String, dynamic> value}) async {
     try {
       Map<String, dynamic> res = {};
@@ -577,7 +579,7 @@ class DataLocalForFirestore {
     return d.first;
   }
 
-  Future<DataItem> updateSyncOne(String id,
+  Future<DataItem> updateOne(String id,
       {required Map<String, dynamic> value}) async {
     DataItem d = await updateOne(id, value: value);
 
@@ -645,6 +647,7 @@ class DataLocalForFirestore {
         _data.addAll(docs.map((e) => DataItem.fromMap({
               "id": e.id,
               "data": e.data(),
+              "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(e.data()!['createdAt']),
               "updatedAt": DateTimeUtils.toDateTime(e.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(e.data()!['deletedAt']),
@@ -653,6 +656,7 @@ class DataLocalForFirestore {
           DataItem element = DataItem.fromMap({
             "id": doc.id,
             "data": doc.data(),
+            "parent": collectionPath,
             "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
             "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
             "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
@@ -746,6 +750,7 @@ class DataLocalForFirestore {
           _data.addAll(news.map((e) => DataItem.fromMap({
                 "id": e.id,
                 "data": e.data(),
+                "parent": collectionPath,
                 "createdAt": DateTimeUtils.toDateTime(e.data()!['createdAt']),
                 "updatedAt": DateTimeUtils.toDateTime(e.data()!['updatedAt']),
                 "deletedAt": DateTimeUtils.toDateTime(e.data()!['deletedAt']),
@@ -754,6 +759,7 @@ class DataLocalForFirestore {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
               "data": doc.data(),
+              "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
@@ -838,6 +844,7 @@ class DataLocalForFirestore {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
               "data": doc.data(),
+              "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),

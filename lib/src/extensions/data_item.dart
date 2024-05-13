@@ -74,4 +74,10 @@ extension DataItemExtension on DataItem {
       },
     );
   }
+
+  // TODO
+  Future<void> upSync() async {}
+
+  // TODO
+  Future<void> downSync() async {}
 }
