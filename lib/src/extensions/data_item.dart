@@ -75,9 +75,13 @@ extension DataItemExtension on DataItem {
     );
   }
 
-  // TODO
-  Future<void> upSync() async {}
+  Future<void> upSync() async {
+    await FirebaseFirestore.instance.collection(parent).doc(id).update(data);
+  }
 
-  // TODO
-  Future<void> downSync() async {}
+  Future<void> downSync() async {
+    DocumentSnapshot<Map<String, dynamic>> value =
+        await FirebaseFirestore.instance.collection(parent).doc(id).get();
+    update(value.data() ?? {});
+  }
 }
