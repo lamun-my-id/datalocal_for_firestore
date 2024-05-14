@@ -75,6 +75,16 @@ extension DataItemExtension on DataItem {
     );
   }
 
+  Future<void> update(Map<String, dynamic> value) async {
+    save(value);
+    await upSync();
+  }
+
+  Future<void> overwrite(Map<String, dynamic> value) async {
+    set(value);
+    await upSync();
+  }
+
   Future<void> upSync() async {
     await FirebaseFirestore.instance.collection(parent).doc(id).update(data);
   }
@@ -82,6 +92,6 @@ extension DataItemExtension on DataItem {
   Future<void> downSync() async {
     DocumentSnapshot<Map<String, dynamic>> value =
         await FirebaseFirestore.instance.collection(parent).doc(id).get();
-    update(value.data() ?? {});
+    save(value.data() ?? {});
   }
 }

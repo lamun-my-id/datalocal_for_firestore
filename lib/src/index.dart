@@ -201,7 +201,7 @@ class DataLocalForFirestore {
           .snapshots()
           .listen((event) async {
         if (event.docs.isNotEmpty) {
-          SharedPreferences prefs = await SharedPreferences.getInstance();
+          // SharedPreferences prefs = await SharedPreferences.getInstance();
           // _data.addAll(event.docs.map((e) => DataItem.fromMap({
           //       "id": e.id,
           //       "data": e.data(),
@@ -233,8 +233,9 @@ class DataLocalForFirestore {
             } catch (e) {
               _log("newStream error(1) : $e");
             }
-            prefs.setString(EncryptUtil().encript(element.id),
-                EncryptUtil().encript(element.toJson()));
+            await element.update({});
+            // prefs.setString(EncryptUtil().encript(element.id),
+            //     EncryptUtil().encript(element.toJson()));
             _container.ids.add(element.id);
           }
           _data = await find(sorts: _sorts, filters: _filters);
@@ -311,7 +312,7 @@ class DataLocalForFirestore {
           .listen((event) async {
         // _log('listen stream $collectionPath');
         if (event.docs.isNotEmpty) {
-          SharedPreferences prefs = await SharedPreferences.getInstance();
+          // SharedPreferences prefs = await SharedPreferences.getInstance();
           // _data.addAll(event.docs.map((e) => DataItem.fromMap({
           //       "id": e.id,
           //       "data": e.data(),
@@ -346,8 +347,9 @@ class DataLocalForFirestore {
                 rPort.close();
               }
 
-              prefs.setString(EncryptUtil().encript(element.id),
-                  EncryptUtil().encript(element.toJson()));
+              // prefs.setString(EncryptUtil().encript(element.id),
+              //     EncryptUtil().encript(element.toJson()));
+              await element.update({});
               _container.ids.add(element.id);
             } catch (e) {
               _log("updateStream error(1) : $e");
@@ -533,9 +535,10 @@ class DataLocalForFirestore {
         _count = data.length;
         refresh();
 
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        prefs.setString(EncryptUtil().encript(newData.id),
-            EncryptUtil().encript(newData.toJson()));
+        await newData.update({});
+        // SharedPreferences prefs = await SharedPreferences.getInstance();
+        // prefs.setString(EncryptUtil().encript(newData.id),
+        //     EncryptUtil().encript(newData.toJson()));
         _container.ids.add(newData.id);
         await _saveState();
       });
@@ -571,9 +574,10 @@ class DataLocalForFirestore {
     if (d.isEmpty) {
       throw "Tidak ada data";
     }
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString(
-        EncryptUtil().encript(id), EncryptUtil().encript(d.first.toJson()));
+    await d.first.update({});
+    // SharedPreferences prefs = await SharedPreferences.getInstance();
+    // prefs.setString(
+    //     EncryptUtil().encript(id), EncryptUtil().encript(d.first.toJson()));
     refresh();
     _saveState();
     return d.first;
@@ -581,7 +585,7 @@ class DataLocalForFirestore {
 
   Future<DataItem> updateOne(String id,
       {required Map<String, dynamic> value}) async {
-    DataItem d = await updateOne(id, value: value);
+    DataItem d = await updateOneLocal(id, value: value);
 
     FirestoreUtil().update(collectionPath, id: id, value: value);
     refresh();
@@ -641,7 +645,7 @@ class DataLocalForFirestore {
             limit: _size,
           )
           .get();
-      SharedPreferences prefs = await SharedPreferences.getInstance();
+      // SharedPreferences prefs = await SharedPreferences.getInstance();
       List<DocumentSnapshot<Map<String, dynamic>>> docs = query.docs;
       if (docs.isNotEmpty) {
         _data.addAll(docs.map((e) => DataItem.fromMap({
@@ -677,8 +681,9 @@ class DataLocalForFirestore {
           //   //
           // }
 
-          prefs.setString(EncryptUtil().encript(element.id),
-              EncryptUtil().encript(element.toJson()));
+          await element.update({});
+          // prefs.setString(EncryptUtil().encript(element.id),
+          //     EncryptUtil().encript(element.toJson()));
           _container.ids.add(doc.id);
         }
         _data = await find(sorts: _sorts, filters: _filters);
@@ -730,7 +735,7 @@ class DataLocalForFirestore {
           value: date,
           operator: DataFilterOperator.isLessThan,
         ));
-        SharedPreferences prefs = await SharedPreferences.getInstance();
+        // SharedPreferences prefs = await SharedPreferences.getInstance();
 
         List<DocumentSnapshot<Map<String, dynamic>>> news =
             (await FirestoreUtil()
@@ -779,8 +784,10 @@ class DataLocalForFirestore {
             //   //
             // }
 
-            prefs.setString(EncryptUtil().encript(element.id),
-                EncryptUtil().encript(element.toJson()));
+            // prefs.setString(EncryptUtil().encript(element.id),
+            //     EncryptUtil().encript(element.toJson()));
+
+            await element.update({});
             _container.ids.add(doc.id);
           }
           _data = await find(sorts: _sorts, filters: _filters);
@@ -864,9 +871,10 @@ class DataLocalForFirestore {
               //
             }
 
-            SharedPreferences prefs = await SharedPreferences.getInstance();
-            prefs.setString(EncryptUtil().encript(element.id),
-                EncryptUtil().encript(element.toJson()));
+            // SharedPreferences prefs = await SharedPreferences.getInstance();
+            // prefs.setString(EncryptUtil().encript(element.id),
+            //     EncryptUtil().encript(element.toJson()));
+            await element.update({});
             _container.ids.add(doc.id);
           }
           _data = await find(sorts: _sorts, filters: _filters);

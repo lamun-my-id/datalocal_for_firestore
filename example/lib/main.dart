@@ -1,8 +1,5 @@
 // import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
-import 'dart:convert';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
@@ -58,8 +55,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   openForm(DataItem value) {
     selectedData = value;
-    // titleController.text = value.get(DataKey('title'));
-    // contentController.text = value.get(DataKey("content"));
+    titleController.text = value.get(DataKey('title'));
+    contentController.text = value.get(DataKey("content"));
     setState(() {});
   }
 
@@ -249,7 +246,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          itemCount: notesDataLocal.count,
+                          itemCount: notesDataLocal.data.length,
                           itemBuilder: (_, index) {
                             DataItem data = notes[index];
                             return Padding(
