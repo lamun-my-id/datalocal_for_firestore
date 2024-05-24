@@ -233,7 +233,6 @@ class DataLocalForFirestore {
             } catch (e) {
               _log("newStream error(1) : $e");
             }
-            await element.update({});
             // prefs.setString(EncryptUtil().encript(element.id),
             //     EncryptUtil().encript(element.toJson()));
             _container.ids.add(element.id);
@@ -349,7 +348,7 @@ class DataLocalForFirestore {
 
               // prefs.setString(EncryptUtil().encript(element.id),
               //     EncryptUtil().encript(element.toJson()));
-              await element.update({});
+
               _container.ids.add(element.id);
             } catch (e) {
               _log("updateStream error(1) : $e");
@@ -535,7 +534,6 @@ class DataLocalForFirestore {
         _count = data.length;
         refresh();
 
-        await newData.update({});
         // SharedPreferences prefs = await SharedPreferences.getInstance();
         // prefs.setString(EncryptUtil().encript(newData.id),
         //     EncryptUtil().encript(newData.toJson()));
@@ -574,7 +572,6 @@ class DataLocalForFirestore {
     if (d.isEmpty) {
       throw "Tidak ada data";
     }
-    await d.first.update({});
     // SharedPreferences prefs = await SharedPreferences.getInstance();
     // prefs.setString(
     //     EncryptUtil().encript(id), EncryptUtil().encript(d.first.toJson()));
@@ -657,14 +654,14 @@ class DataLocalForFirestore {
               "deletedAt": DateTimeUtils.toDateTime(e.data()!['deletedAt']),
             })));
         for (DocumentSnapshot<Map<String, dynamic>> doc in docs) {
-          DataItem element = DataItem.fromMap({
-            "id": doc.id,
-            "data": doc.data(),
-            "parent": collectionPath,
-            "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
-            "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
-            "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
-          });
+          // DataItem element = DataItem.fromMap({
+          //   "id": doc.id,
+          //   "data": doc.data(),
+          //   "parent": collectionPath,
+          //   "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+          //   "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+          //   "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+          // });
           // try {
           //   if (kIsWeb) {
           //     _data = _listDataItemAddUpdate([null, data, element])['data'];
@@ -681,7 +678,6 @@ class DataLocalForFirestore {
           //   //
           // }
 
-          await element.update({});
           // prefs.setString(EncryptUtil().encript(element.id),
           //     EncryptUtil().encript(element.toJson()));
           _container.ids.add(doc.id);
@@ -761,14 +757,14 @@ class DataLocalForFirestore {
                 "deletedAt": DateTimeUtils.toDateTime(e.data()!['deletedAt']),
               })));
           for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
-            DataItem element = DataItem.fromMap({
-              "id": doc.id,
-              "data": doc.data(),
-              "parent": collectionPath,
-              "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
-              "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
-              "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
-            });
+            // DataItem element = DataItem.fromMap({
+            //   "id": doc.id,
+            //   "data": doc.data(),
+            //   "parent": collectionPath,
+            //   "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+            //   "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+            //   "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+            // });
             // try {
             //   if (kIsWeb) {
             //     _data = _listDataItemAddUpdate([null, data, element])['data'];
@@ -787,7 +783,6 @@ class DataLocalForFirestore {
             // prefs.setString(EncryptUtil().encript(element.id),
             //     EncryptUtil().encript(element.toJson()));
 
-            await element.update({});
             _container.ids.add(doc.id);
           }
           _data = await find(sorts: _sorts, filters: _filters);
@@ -874,7 +869,6 @@ class DataLocalForFirestore {
             // SharedPreferences prefs = await SharedPreferences.getInstance();
             // prefs.setString(EncryptUtil().encript(element.id),
             //     EncryptUtil().encript(element.toJson()));
-            await element.update({});
             _container.ids.add(doc.id);
           }
           _data = await find(sorts: _sorts, filters: _filters);

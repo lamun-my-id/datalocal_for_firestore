@@ -1,7 +1,7 @@
 name: datalocal_for_firestore
 description: "Flutter local data with integration with firestore saved with state."
 repository: "https://github.com/lamun-my-id/datalocal_for_firestore.git"
-version: 1.0.22
+version: 1.0.23
 # test    : dart pub publish --dry-run
 # deploy  : dart pub publish 
 
