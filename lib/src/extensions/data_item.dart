@@ -5,6 +5,16 @@ import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 
 extension DataItemExtension on DataItem {
+  DataItem setFromDoc(DocumentSnapshot<Map<String, dynamic>> value) {
+    return DataItem.fromMap({
+      "id": value.id,
+      "data": value.data(),
+      "createdAt": DateTimeUtils.toDateTime(value.data()!['createdAt']),
+      "updatedAt": DateTimeUtils.toDateTime(value.data()!['updatedAt']),
+      "deletedAt": DateTimeUtils.toDateTime(value.data()!['deletedAt']),
+    });
+  }
+
   dynamic get(DataKey key) {
     try {
       dynamic value = {};
@@ -20,14 +30,12 @@ extension DataItemExtension on DataItem {
               if (value[p] is Timestamp) {
                 value = DateTime.fromMillisecondsSinceEpoch(
                     value[p].millisecondsSinceEpoch);
-              }
-              if (value[p] is GeoPoint) {
+              } else if (value[p] is GeoPoint) {
                 value = {
                   "latitude": value[p].latitude,
                   "longitude": value[p].longitude,
                 };
-              }
-              if (value is String) {
+              } else if (value is String) {
                 value = Map<String, dynamic>.from(jsonDecode(value))[p];
               } else {
                 value = value[p];
@@ -65,5 +73,25 @@ extension DataItemExtension on DataItem {
         }
       },
     );
+  }
+
+  Future<void> update(Map<String, dynamic> value) async {
+    save(value);
+    await upSync();
+  }
+
+  Future<void> overwrite(Map<String, dynamic> value) async {
+    set(value);
+    await upSync();
+  }
+
+  Future<void> upSync() async {
+    await FirebaseFirestore.instance.collection(parent).doc(id).update(data);
+  }
+
+  Future<void> downSync() async {
+    DocumentSnapshot<Map<String, dynamic>> value =
+        await FirebaseFirestore.instance.collection(parent).doc(id).get();
+    save(value.data() ?? {});
   }
 }

@@ -2,6 +2,7 @@
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
+// import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 // import 'package:example/dl.dart';
 // import 'package:datalocal/datalocal.dart';
 import 'package:example/firebase_options.dart';
@@ -83,7 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   edit() async {
-    await notesDataLocal.updateSyncOne(selectedData!.id, value: {
+    await notesDataLocal.updateOne(selectedData!.id, value: {
       "title": titleController.text,
       "content": contentController.text,
       "updatedAt": DateTime.now(),
@@ -182,6 +183,37 @@ class _MyHomePageState extends State<MyHomePage> {
         height: MediaQuery.of(context).size.height,
         child: Column(
           children: [
+            // Expanded(
+            //   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            //       stream:
+            //           FirebaseFirestore.instance.collection("locs").snapshots(),
+            //       builder: (_, snapshot) {
+            //         if (!snapshot.hasData) {
+            //           return const Text("Loading");
+            //         }
+            //         return SingleChildScrollView(
+            //           child: Column(
+            //             children:
+            //                 List.generate(snapshot.data!.docs.length, (index) {
+            //               DocumentSnapshot<Map<String, dynamic>> e =
+            //                   snapshot.data!.docs[index];
+
+            //               DataItem d = DataItem().setFromDoc(e);
+            //               return Column(
+            //                 children: [
+            //                   Text(e.id),
+            //                   Text(e.data()!['geo'].toString()),
+            //                   Text(d.id),
+            //                   Text(DataItem.fromMap(jsonDecode(d.toJson()))
+            //                       .get(DataKey("geo.latitude"))
+            //                       .toString()),
+            //                 ],
+            //               );
+            //             }),
+            //           ),
+            //         );
+            //       }),
+            // ),
             // StreamBuilder(
             //   stream:
             //       FirebaseFirestore.instance.collection("notes").snapshots(),
@@ -214,7 +246,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          itemCount: notesDataLocal.count,
+                          itemCount: notesDataLocal.data.length,
                           itemBuilder: (_, index) {
                             DataItem data = notes[index];
                             return Padding(

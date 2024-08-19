@@ -1,3 +1,30 @@
+## 1.0.23
+* Fix update & insert data
+
+## 1.0.22
+* Adjust versioning
+* Add Bug
+
+## 1.0.21
+* Fixed saved Data
+* Adjust named Function
+* Add Bug
+
+## 1.0.20
+* Add Paginate Extension
+
+## 1.0.19
+* fix sort for DateTime 
+
+## 1.0.18
+* fix geopoint
+
+## 1.0.17
+* fix geopoint
+
+## 1.0.16
+* fix geopoint
+
 ## 1.0.15
 * add data key
 * add oncatch data key
