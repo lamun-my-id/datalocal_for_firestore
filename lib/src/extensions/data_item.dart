@@ -26,6 +26,9 @@ extension DataItemExtension on DataItem {
                   "latitude": value[p].latitude,
                   "longitude": value[p].longitude,
                 };
+              }
+              if (value is String) {
+                value = Map<String, dynamic>.from(jsonDecode(value))[p];
               } else {
                 value = value[p];
               }
@@ -53,10 +56,10 @@ extension DataItemExtension on DataItem {
           return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
               .toString();
         } else if (_ is GeoPoint) {
-          return {
+          return jsonEncode({
             "latitude": _.latitude,
             "longitude": _.longitude,
-          }.toString();
+          });
         } else {
           return "";
         }
