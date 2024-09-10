@@ -1,5 +1,6 @@
 // import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 // import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
@@ -45,7 +46,6 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late DataLocalForFirestore notesDataLocal;
-  List<DataItem> notes = [];
   bool isLoading = false;
 
   DataItem? selectedData;
@@ -126,7 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
         )) ??
         false;
     if (rmv) {
-      await notesDataLocal.deleteOne(selectedData!.id);
+      await notesDataLocal.removeOne(selectedData!.id);
       selectedData = null;
       titleController.clear();
       contentController.clear();
@@ -145,20 +145,9 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       debugMode: true,
       sorts: [
-        DataSort(key: DataKey("updatedAt")),
+        DataSort(key: DataKey("updatedAt", onKeyCatch: "createdAt")),
       ],
     );
-    notesDataLocal.onRefresh = () async {
-      notes = await notesDataLocal.find(
-        sorts: [
-          DataSort(key: DataKey("updatedAt", onKeyCatch: "createdAt")),
-        ],
-      );
-      // for (DataItem note in notes) {
-      //   print("========================${note.updatedAt}-${note.get("title")}");
-      // }
-      setState(() {});
-    };
     notesDataLocal.refresh();
     isLoading = false;
     setState(() {});
@@ -177,6 +166,22 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text("Datalocal for Firestore Demo"),
+        actions: [
+          InkWell(
+            onTap: () async {
+              for (int i = 0; i < 1000; i++) {
+                await notesDataLocal.insertOne({
+                  "title": "Test $i",
+                  "content":
+                      "Lorem ipsum odor amet, consectetuer adipiscing elit. Consectetur semper aenean malesuada libero augue dis sagittis commodo? Placerat molestie ac massa facilisis justo, habitasse parturient consectetur ligula. Sagittis habitasse mattis commodo placerat velit tellus sociosqu ultricies? Vestibulum tincidunt per tortor enim sit ultricies. Mi penatibus quis tristique mi bibendum primis commodo vehicula cras. Urna potenti ornare molestie orci vitae ante. Sed lacinia platea est pellentesque iaculis. Id cras magna volutpat magnis; hac mollis donec.Felis velit aliquet gravida porta auctor quisque diam ornare. Porta pretium condimentum tortor ultrices ultricies; dignissim dui gravida ullamcorper. Vestibulum vestibulum nunc ridiculus in sagittis consectetur lacus vitae. Diam integer augue facilisi sagittis consectetur neque dui. Dolor mollis tempus sit ullamcorper eget consequat. Interdum a risus egestas scelerisque consequat egestas sit. Nam aliquam curae phasellus tristique primis velit. Mus et per egestas eleifend fringilla class dignissim eleifend congue.Cubilia interdum nam massa felis fermentum pretium porttitor porta. Torquent ut tristique bibendum rutrum nostra phasellus. Vitae elementum ridiculus diam conubia eros sociosqu cubilia placerat. Fames duis felis id, dictum himenaeos morbi. Proin suscipit porttitor ad fusce tortor, ut consectetur. Non ut etiam dictum litora id a diam tincidunt. Congue est commodo nullam tempus platea volutpat elementum.Feugiat sollicitudin ultrices sed litora erat. Habitant maecenas sit mattis vestibulum taciti primis nullam habitasse luctus. Dictum suspendisse porttitor elementum cras hendrerit nisi gravida. Lacinia dapibus habitant nisl fringilla luctus ex metus. Torquent auctor placerat neque; felis ligula varius. Mollis etiam lacus tincidunt feugiat eu eu. Risus nec ante nam felis odio senectus tincidunt dis.Maecenas commodo placerat proin nisl aliquet fermentum hac. Volutpat sapien proin nec feugiat sollicitudin. Blandit suspendisse curabitur habitant gravida aptent ullamcorper class primis. Mi maximus arcu finibus habitant maximus finibus. Maecenas at dictum velit a maecenas. Quisque ad lobortis elementum iaculis fusce pulvinar ornare. Semper montes iaculis netus; congue netus ac. Maximus fusce non lorem tempus, semper morbi adipiscing.",
+                  "createdAt": DateTime.now(),
+                  "updatedAt": null,
+                });
+              }
+            },
+            child: Icon(Icons.add),
+          ),
+        ],
       ),
       body: SizedBox(
         width: width,
@@ -230,23 +235,26 @@ class _MyHomePageState extends State<MyHomePage> {
             // Text(notesDataLocal.data.length.toString()),
             Expanded(
               flex: 5,
-              child: Builder(
-                builder: (_) {
-                  if (isLoading) {
+              child: FutureBuilder<DataQuery>(
+                future: notesDataLocal.find(),
+                builder: (_, snapshot) {
+                  if (!snapshot.hasData || snapshot.hasError) {
                     return const Center(
                       child: CircularProgressIndicator(),
                     );
                   }
+                  DataQuery query = snapshot.data!;
+                  List<DataItem> notes = query.data;
                   return Column(
                     children: [
-                      Text(notesDataLocal.count.toString()),
+                      Text(query.count.toString()),
                       Expanded(
                         child: ListView.builder(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          itemCount: notesDataLocal.data.length,
+                          itemCount: notes.length,
                           itemBuilder: (_, index) {
                             DataItem data = notes[index];
                             return Padding(

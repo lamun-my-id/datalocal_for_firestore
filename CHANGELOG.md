@@ -1,3 +1,9 @@
+## 1.0.25
+* Update Cloud Firestore
+
+## 1.0.24
+* Update Cloud Firestore
+
 ## 1.0.23
 * Fix update & insert data
 
