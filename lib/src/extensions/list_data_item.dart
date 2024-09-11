@@ -1,9 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
-// import 'package:datalocal/datalocal.dart';
 import 'package:datalocal_for_firestore/src/extensions/list.dart';
-import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
+import 'package:datalocal/utils/date_time.dart';
+import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 
 extension ListDataItem on List<DataItem> {
   /// Part Extension of [List<DataItem>] to sort data
@@ -25,10 +23,7 @@ extension ListDataItem on List<DataItem> {
               b = 0;
               return !parameters[i].desc ? a.compareTo(1) : b.compareTo(1);
             }
-          } else if (a is DateTime ||
-              b is DateTime ||
-              a is Timestamp ||
-              b is Timestamp) {
+          } else if (a is DateTime || b is DateTime) {
             a = DateTimeUtils.toDateTime(a);
             b = DateTimeUtils.toDateTime(b);
             if (a == null) {
@@ -242,9 +237,9 @@ extension ListDataItem on List<DataItem> {
   }
 
   // default page number is 1 and size is 30
-  List<DataItem> paginate({int page = 1, int size = 30}) {
-    List<List<DataItem>> data = List<List<DataItem>>.from(chunks(size));
-    if (page < 1) throw "Page ready at 1 to ${data.length}";
-    return data[page - 1];
+  List<DataItem> paginate(DataPaginate value) {
+    List<List<DataItem>> data = List<List<DataItem>>.from(chunks(value.size));
+    if (value.page < 1) throw "Page ready at 1 to ${data.length}";
+    return data[value.page - 1];
   }
 }

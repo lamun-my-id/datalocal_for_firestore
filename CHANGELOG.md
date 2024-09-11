@@ -1,3 +1,8 @@
+## 1.0.26
+* Fix paginate
+* remove data
+* add more and much bug
+
 ## 1.0.25
 * Update Cloud Firestore
 

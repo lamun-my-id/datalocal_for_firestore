@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
-import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
 import 'package:datalocal_for_firestore/src/extensions/list_data_item.dart';
 
 class DataLocalForFirestore extends DataLocal {
@@ -32,7 +31,7 @@ class DataLocalForFirestore extends DataLocal {
     required String collectionPath,
     List<DataSort>? sorts,
     List<DataFilter>? filters,
-    int size = 100,
+    // int size = 100,
   }) async {
     DataLocalForFirestore result = DataLocalForFirestore(
       stateName,
@@ -42,7 +41,7 @@ class DataLocalForFirestore extends DataLocal {
     );
     result._sorts = sorts;
     result._filters = filters;
-    result._size = size;
+    // result._size = size;
     await result._initialize();
     return result;
   }
@@ -52,7 +51,7 @@ class DataLocalForFirestore extends DataLocal {
 
   late String _name;
 
-  late int _size;
+  // late int _size;
 
   final bool _debugMode;
   late DataContainer _container;
@@ -109,7 +108,7 @@ class DataLocalForFirestore extends DataLocal {
         }
 
         if (_container.ids.isNotEmpty) {
-          _loadState();
+          await _loadState();
         }
       } catch (e) {
         _log("initialize error(2)#$stateName : $e");
@@ -119,6 +118,8 @@ class DataLocalForFirestore extends DataLocal {
 
       if (firstTime || _container.ids.isEmpty) {
         await _sync();
+      } else {
+        // print('bukan pertama kalo skip synckon, ${_container.ids.length}');
       }
       _stream();
     } catch (e) {
@@ -286,6 +287,7 @@ class DataLocalForFirestore extends DataLocal {
             )
             .get())
         .docs;
+    // print("=================${news.length}");
     if (news.isNotEmpty) {
       for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
         DataItem element = DataItem.fromMap({
@@ -311,6 +313,184 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// Find More Efective Data with this function
+  @override
+  Future<DataQuery> find({
+    List<DataFilter>? filters,
+    List<DataSort>? sorts,
+    DataSearch? search,
+    DataPaginate? paginate,
+  }) async {
+    // _log('findAsync Isolate.spawn');
+    Map<String, dynamic> res = {};
+    try {
+      if (kIsWeb) {
+        res = _listDataItemFind([null, _raw, filters, sorts, search, paginate]);
+      } else {
+        ReceivePort rPort = ReceivePort();
+        await Isolate.spawn(_listDataItemFind,
+            [rPort.sendPort, _raw, filters, sorts, search, paginate]);
+        res = await rPort.first;
+        rPort.close();
+      }
+    } catch (e, st) {
+      _log('findAsync Isolate.spawn $e, $st');
+    }
+    return DataQuery(
+      data: res['data'],
+      length: res['length'],
+      count: res['count'],
+      page: res['page'],
+      pageSize: res['pageSize'],
+    );
+  }
+
+  /// Insert and save DataItem
+  @override
+  Future<DataItem> insertOne(Map<String, dynamic> value, {String? id}) async {
+    _container.seq++;
+    DataItem newData = DataItem.create(
+      id ??
+          EncryptUtil()
+              .encript(DateTime.now().toString() + _container.seq.toString()),
+      value: value,
+      name: stateName,
+      parent: "",
+      seq: _container.seq,
+    );
+    try {
+      _raw[newData.id] = newData;
+      refresh();
+      await newData.save({});
+      _container.ids.add(newData.path());
+      _container.lastDataCreatedAt = newData.createdAt;
+      _count = _container.ids.length;
+      FirebaseFirestore.instance
+          .collection(collectionPath)
+          .doc(newData.id)
+          .set(value)
+          .then((_) {});
+      _saveState();
+    } catch (e) {
+      _log("error disini");
+      //
+    }
+    return newData;
+  }
+
+  @override
+  Future<void> insertMany(List<Map<String, dynamic>> values) async {
+    for (Map<String, dynamic> value in values) {
+      _container.seq++;
+      DataItem newData = DataItem.create(
+        EncryptUtil()
+            .encript(DateTime.now().toString() + _container.seq.toString()),
+        value: value,
+        name: stateName,
+        parent: "",
+        seq: _container.seq,
+      );
+      try {
+        _raw[newData.id] = newData;
+        await newData.save({});
+        _container.ids.add(newData.path());
+        _container.lastDataCreatedAt = newData.createdAt;
+        _count = _container.ids.length;
+
+        FirebaseFirestore.instance
+            .collection(collectionPath)
+            .doc(newData.id)
+            .set(value)
+            .then((_) {});
+      } catch (e) {
+        //
+      }
+    }
+    try {
+      refresh();
+      _saveState();
+    } catch (e) {
+      _log("error disini");
+      //
+    }
+  }
+
+  /// Update to save DataItem
+  @override
+  Future<DataItem> updateOne(String id,
+      {required Map<String, dynamic> value}) async {
+    try {
+      _count = _container.ids.length;
+    } catch (e, st) {
+      _log('findAsync Isolate.spawn $e, $st');
+    }
+
+    await _raw[id]!.save(value);
+    value['updatedAt'] = FieldValue.serverTimestamp();
+    FirebaseFirestore.instance
+        .collection(collectionPath)
+        .doc(id)
+        .update(value)
+        .then((_) {});
+    _container.lastDataUpdatedAt = _raw[id]?.updatedAt;
+    refresh();
+    _saveState();
+    return _raw[id]!;
+  }
+
+  /// Deletion DataItem
+  @override
+  Future<void> removeOne(String id) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      DataItem? d = _raw[id];
+      if (d == null) {
+        throw "Data with id $id, not found";
+      }
+      _raw.remove(id);
+      _container.ids.remove(id);
+      _count = _container.ids.length;
+      await prefs.remove(EncryptUtil().encript(d.path()));
+      FirebaseFirestore.instance
+          .collection(collectionPath)
+          .doc(id)
+          .delete()
+          .then((_) {});
+    } catch (e, st) {
+      _log('findAsync Isolate.spawn $e, $st');
+    }
+
+    refresh();
+    _saveState();
+  }
+
+  @override
+  Future<void> removeMany(List<String> ids) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      for (String id in ids) {
+        DataItem? d = _raw['id'];
+        if (d == null) {
+          throw "Data with id $id, not found";
+        }
+        _raw.remove(id);
+        _container.ids.remove(id);
+        _count = _container.ids.length;
+        await prefs.remove(EncryptUtil().encript(d.path()));
+        FirebaseFirestore.instance
+            .collection(collectionPath)
+            .doc(id)
+            .delete()
+            .then((_) {});
+      }
+    } catch (e, st) {
+      _log('findAsync Isolate.spawn $e, $st');
+    }
+
+    refresh();
+    _saveState();
+  }
+
   Future<void> _saveState() async {
     _isLoading = true;
     refresh();
@@ -330,7 +510,7 @@ class DataLocalForFirestore extends DataLocal {
     _isLoading = true;
     refresh();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    print(_container.ids.length);
+    // print(_container.ids.length);
     for (String id in _container.ids) {
       String? ref = prefs.getString(EncryptUtil().encript(id));
       if (ref == null) {
@@ -346,5 +526,44 @@ class DataLocalForFirestore extends DataLocal {
 
     _isLoading = false;
     refresh();
+  }
+}
+
+dynamic _listDataItemFind(List<dynamic> args) {
+  Map<String, DataItem> raw = Map<String, DataItem>.from(args[1]);
+  List<DataFilter>? filters = args[2];
+  List<DataSort>? sorts = args[3];
+  DataSearch? search = args[4];
+  DataPaginate? paginate = args[5];
+
+  List<DataItem> data = raw.entries.map((entry) => entry.value).toList();
+
+  if (filters != null) {
+    data = data.filterData(filters);
+  }
+  if (sorts != null) {
+    data = data.sortData(sorts);
+  }
+  if (search != null) {
+    data = data.searchData(search);
+  }
+  Map<String, dynamic> result = {};
+  result['count'] = data.length;
+  if (paginate != null) {
+    try {
+      result['page'] = paginate.page;
+      result['pageSize'] = paginate.size;
+      data = data.paginate(paginate);
+    } catch (e) {
+      //
+    }
+  }
+  result['length'] = data.length;
+  result['data'] = data;
+  if (kIsWeb) {
+    return result;
+  } else {
+    SendPort port = args[0];
+    Isolate.exit(port, result);
   }
 }

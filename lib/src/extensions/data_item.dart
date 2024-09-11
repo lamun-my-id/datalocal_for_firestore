@@ -1,3 +1,5 @@
+// ignore_for_file: no_wildcard_variable_uses
+
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +23,12 @@ extension DataItemExtension on DataItem {
       switch (key.key) {
         case "#id":
           value = id;
+          break;
+        case "#createdAt":
+          value = createdAt;
+          break;
+        case "#updatedAt":
+          value = updatedAt;
           break;
         default:
           {
