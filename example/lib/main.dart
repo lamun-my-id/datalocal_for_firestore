@@ -39,6 +39,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  String message = "";
   late DataLocalForFirestore state;
   bool isLoading = false;
 
@@ -148,15 +149,13 @@ class _MyHomePageState extends State<MyHomePage> {
     isLoading = true;
     setState(() {});
     state = await DataLocalForFirestore.stream(
-      "notes",
+      "notes27",
       collectionPath: "notes",
       onRefresh: () {
         setState(() {});
+        // print("Refresh SetSatte");
       },
       debugMode: true,
-      sorts: [
-        DataSort(key: DataKey("updatedAt", onKeyCatch: "createdAt")),
-      ],
     );
     state.refresh();
     isLoading = false;
@@ -175,22 +174,22 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text("Datalocal for Firestore Demo"),
+        title: const Text("Test Data local"),
         actions: [
-          // InkWell(
-          //   onTap: () async {
-          //     for (int i = 0; i < 1000; i++) {
-          //       await state.insertOne({
-          //         "title": "Test $i",
-          //         "content":
-          //             "Lorem ipsum odor amet, consectetuer adipiscing elit. Consectetur semper aenean malesuada libero augue dis sagittis commodo? Placerat molestie ac massa facilisis justo, habitasse parturient consectetur ligula. Sagittis habitasse mattis commodo placerat velit tellus sociosqu ultricies? Vestibulum tincidunt per tortor enim sit ultricies. Mi penatibus quis tristique mi bibendum primis commodo vehicula cras. Urna potenti ornare molestie orci vitae ante. Sed lacinia platea est pellentesque iaculis. Id cras magna volutpat magnis; hac mollis donec.Felis velit aliquet gravida porta auctor quisque diam ornare. Porta pretium condimentum tortor ultrices ultricies; dignissim dui gravida ullamcorper. Vestibulum vestibulum nunc ridiculus in sagittis consectetur lacus vitae. Diam integer augue facilisi sagittis consectetur neque dui. Dolor mollis tempus sit ullamcorper eget consequat. Interdum a risus egestas scelerisque consequat egestas sit. Nam aliquam curae phasellus tristique primis velit. Mus et per egestas eleifend fringilla class dignissim eleifend congue.Cubilia interdum nam massa felis fermentum pretium porttitor porta. Torquent ut tristique bibendum rutrum nostra phasellus. Vitae elementum ridiculus diam conubia eros sociosqu cubilia placerat. Fames duis felis id, dictum himenaeos morbi. Proin suscipit porttitor ad fusce tortor, ut consectetur. Non ut etiam dictum litora id a diam tincidunt. Congue est commodo nullam tempus platea volutpat elementum.Feugiat sollicitudin ultrices sed litora erat. Habitant maecenas sit mattis vestibulum taciti primis nullam habitasse luctus. Dictum suspendisse porttitor elementum cras hendrerit nisi gravida. Lacinia dapibus habitant nisl fringilla luctus ex metus. Torquent auctor placerat neque; felis ligula varius. Mollis etiam lacus tincidunt feugiat eu eu. Risus nec ante nam felis odio senectus tincidunt dis.Maecenas commodo placerat proin nisl aliquet fermentum hac. Volutpat sapien proin nec feugiat sollicitudin. Blandit suspendisse curabitur habitant gravida aptent ullamcorper class primis. Mi maximus arcu finibus habitant maximus finibus. Maecenas at dictum velit a maecenas. Quisque ad lobortis elementum iaculis fusce pulvinar ornare. Semper montes iaculis netus; congue netus ac. Maximus fusce non lorem tempus, semper morbi adipiscing.",
-          //         "createdAt": DateTime.now(),
-          //         "updatedAt": null,
-          //       });
-          //     }
-          //   },
-          //   child: Icon(Icons.add),
-          // ),
+          InkWell(
+            onTap: () async {
+              for (int i = 0; i < 1; i++) {
+                await state.insertOne({
+                  "title": "Test ${state.count + 1}",
+                  "content":
+                      "Lorem ipsum odor amet, consectetuer adipiscing elit. Consectetur semper aenean malesuada libero augue dis sagittis commodo? Placerat molestie ac massa facilisis justo, habitasse parturient consectetur ligula. Sagittis habitasse mattis commodo placerat velit tellus sociosqu ultricies? Vestibulum tincidunt per tortor enim sit ultricies. Mi penatibus quis tristique mi bibendum primis commodo vehicula cras. Urna potenti ornare molestie orci vitae ante. Sed lacinia platea est pellentesque iaculis. Id cras magna volutpat magnis; hac mollis donec.Felis velit aliquet gravida porta auctor quisque diam ornare. Porta pretium condimentum tortor ultrices ultricies; dignissim dui gravida ullamcorper. Vestibulum vestibulum nunc ridiculus in sagittis consectetur lacus vitae. Diam integer augue facilisi sagittis consectetur neque dui. Dolor mollis tempus sit ullamcorper eget consequat. Interdum a risus egestas scelerisque consequat egestas sit. Nam aliquam curae phasellus tristique primis velit. Mus et per egestas eleifend fringilla class dignissim eleifend congue.Cubilia interdum nam massa felis fermentum pretium porttitor porta. Torquent ut tristique bibendum rutrum nostra phasellus. Vitae elementum ridiculus diam conubia eros sociosqu cubilia placerat. Fames duis felis id, dictum himenaeos morbi. Proin suscipit porttitor ad fusce tortor, ut consectetur. Non ut etiam dictum litora id a diam tincidunt. Congue est commodo nullam tempus platea volutpat elementum.Feugiat sollicitudin ultrices sed litora erat. Habitant maecenas sit mattis vestibulum taciti primis nullam habitasse luctus. Dictum suspendisse porttitor elementum cras hendrerit nisi gravida. Lacinia dapibus habitant nisl fringilla luctus ex metus. Torquent auctor placerat neque; felis ligula varius. Mollis etiam lacus tincidunt feugiat eu eu. Risus nec ante nam felis odio senectus tincidunt dis.Maecenas commodo placerat proin nisl aliquet fermentum hac. Volutpat sapien proin nec feugiat sollicitudin. Blandit suspendisse curabitur habitant gravida aptent ullamcorper class primis. Mi maximus arcu finibus habitant maximus finibus. Maecenas at dictum velit a maecenas. Quisque ad lobortis elementum iaculis fusce pulvinar ornare. Semper montes iaculis netus; congue netus ac. Maximus fusce non lorem tempus, semper morbi adipiscing.",
+                  "createdAt": DateTime.now(),
+                  "updatedAt": null,
+                });
+              }
+            },
+            child: const Icon(Icons.add),
+          ),
           InkWell(
             onTap: () async {
               // initialize();
@@ -207,6 +206,14 @@ class _MyHomePageState extends State<MyHomePage> {
         height: MediaQuery.of(context).size.height,
         child: Column(
           children: [
+            InkWell(
+              onTap: () async {
+                // print("Josh");
+              },
+              child: Text(
+                "Klik untuk josh ($message)",
+              ),
+            ),
             // Expanded(
             //   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             //       stream:
@@ -258,7 +265,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 // future: state.find(),
                 future: state.find(
                   sorts: [
-                    sort ?? sorts[0],
+                    sort ?? sorts[3],
                   ],
                   search: (search.value ?? "").isNotEmpty ? search : null,
                   paginate: dpaginate,

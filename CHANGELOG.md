@@ -1,3 +1,8 @@
+## 1.0.27
+* Fix Data Initialize
+- Fix Stream data
+- Fix state save/load
+
 ## 1.0.26
 * Fix paginate
 * remove data

@@ -1,3 +1,5 @@
+// ignore_for_file: no_wildcard_variable_uses
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
@@ -7,6 +9,7 @@ import 'package:datalocal/datalocal.dart';
 import 'package:datalocal/utils/encrypt.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
@@ -31,7 +34,7 @@ class DataLocalForFirestore extends DataLocal {
     required String collectionPath,
     List<DataSort>? sorts,
     List<DataFilter>? filters,
-    // int size = 100,
+    int size = 100,
   }) async {
     DataLocalForFirestore result = DataLocalForFirestore(
       stateName,
@@ -41,7 +44,7 @@ class DataLocalForFirestore extends DataLocal {
     );
     result._sorts = sorts;
     result._filters = filters;
-    // result._size = size;
+    result._size = size;
     await result._initialize();
     return result;
   }
@@ -51,10 +54,11 @@ class DataLocalForFirestore extends DataLocal {
 
   late String _name;
 
-  // late int _size;
+  late int _size;
 
   final bool _debugMode;
   late DataContainer _container;
+  // DataContainer get container => _container;
 
   bool _isLoading = false;
   @override
@@ -69,8 +73,7 @@ class DataLocalForFirestore extends DataLocal {
   int get count => _count;
 
   final Map<String, DataItem> _raw = {};
-  @override
-  Map<String, DataItem> get raw => _raw;
+  // Map<String, DataItem> get raw => _raw;
 
   /// Log DataLocal used on debugMode
   _log(dynamic arg) async {
@@ -82,7 +85,7 @@ class DataLocalForFirestore extends DataLocal {
   Future<void> _initialize() async {
     try {
       _name = EncryptUtil().encript(
-        "DataLocal-$stateName",
+        "DataLocalForFirestore-$stateName",
       );
       bool firstTime = true;
       try {
@@ -115,13 +118,29 @@ class DataLocalForFirestore extends DataLocal {
       }
       _isInit = true;
       refresh();
-
+      // print("========================${_container.ids.length}");
       if (firstTime || _container.ids.isEmpty) {
-        await _sync();
+        // print(
+        //     'pertama kali atau actualCount tidak sesuai, ${_container.ids.length}');
+        await _presync();
       } else {
+        if ((_container.params['actualCount'] ?? 0) != _container.ids.length) {
+          await _syncCounter();
+        }
         // print('bukan pertama kalo skip synckon, ${_container.ids.length}');
       }
-      _stream();
+      // print("object state berhasil di load ============");
+      if ((_container.params['actualCount'] ?? 0) != _container.ids.length) {
+        _sync().then((_) async {
+          // print('=======sync berhasil');
+          await _saveState();
+          // print('=======save');
+          _stream();
+        });
+      } else {
+        _stream();
+      }
+      refresh();
     } catch (e) {
       _log("initialize error(1) : $e");
       //
@@ -132,15 +151,18 @@ class DataLocalForFirestore extends DataLocal {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _updateStream;
 
   Future<void> _stream() async {
+    // print("Stream started");
     try {
       _streamNews();
     } catch (e) {
+      // print(e);
       //
     }
 
     try {
       _streamUpdates();
     } catch (e) {
+      // print(e);
       // _log("error update");
     }
   }
@@ -180,27 +202,25 @@ class DataLocalForFirestore extends DataLocal {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
               "data": doc.data(),
+              "name": stateName,
+              "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
             });
             try {
               _raw[doc.id] = element;
-              _container.ids.add(doc.id);
-              _container.ids = _container.ids.toSet().toList();
-              await element.save({});
+              _container.ids.add(element.path());
+              await _raw[doc.id]!.save({});
             } catch (e) {
               _log("newStream error(1) : $e");
-              //
             }
           }
-          _saveState();
-          _count = _container.ids.length;
           _container.lastDataCreatedAt =
               DateTimeUtils.toDateTime(event.docs.first['createdAt']);
           _newStream?.cancel();
           _streamNews();
-          refresh();
+          _syncCounter();
           _log("new Stream available, ${_container.lastDataCreatedAt}");
         } else {
           _log("new Stream unavailable, ${_container.lastDataCreatedAt}");
@@ -248,24 +268,26 @@ class DataLocalForFirestore extends DataLocal {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
               "data": doc.data(),
+              "name": stateName,
+              "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
               "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
               "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
             });
             try {
               _raw[doc.id] = element;
-              await element.save({});
+              await _raw[doc.id]!.save({});
             } catch (e) {
               _log("newStream error(1) : $e");
               //
             }
           }
-          _saveState();
           _count = _container.ids.length;
           _container.lastDataUpdatedAt =
               DateTimeUtils.toDateTime(event.docs.first['updatedAt']);
           _updateStream?.cancel();
           _streamUpdates();
+          _syncCounter();
           _log('update available, ${_container.lastDataUpdatedAt}');
           refresh();
         } else {
@@ -277,40 +299,128 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
-  Future<void> _sync() async {
-    List<DocumentSnapshot<Map<String, dynamic>>> news = (await FirestoreUtil()
-            .queryBuilder(
-              collectionPath,
-              sorts: _sorts,
-              filters: _filters,
-              // limit: _size,
-            )
-            .get())
-        .docs;
-    // print("=================${news.length}");
+  Future<void> _presync() async {
+    // print("presync counter");
+    await _syncCounter();
+    // print("presync");
+
+    List<DocumentSnapshot<Map<String, dynamic>>> news =
+        await _computeIsolate((_) async {
+      Query<Map<String, dynamic>> query = _[0];
+      List<DocumentSnapshot<Map<String, dynamic>>> news =
+          (await query.get()).docs;
+      return news;
+    }, args: [
+      FirestoreUtil().queryBuilder(
+        collectionPath,
+        sorts: _sorts,
+        filters: _filters,
+        limit: _size,
+      ),
+    ]);
     if (news.isNotEmpty) {
       for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
         DataItem element = DataItem.fromMap({
           "id": doc.id,
           "data": doc.data(),
+          "name": stateName,
+          "parent": collectionPath,
           "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
           "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
           "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
         });
         try {
           _raw[doc.id] = element;
-          _container.ids.add(doc.id);
-          await element.save({});
+          _container.ids.add(element.path());
+          await _raw[doc.id]!.save({});
         } catch (e) {
           _log("newStream error(1) : $e");
           //
         }
       }
-      _saveState();
-      _count = _container.ids.length;
+      // print("presync _ end");
       _container.lastDataCreatedAt = DateTime.now();
+      _syncContainer();
       refresh();
     }
+  }
+
+  Future<void> _sync() async {
+    // print("start sync");
+    int ac = _container.params['actualCount'];
+    int pages = (ac / _size).ceil();
+    DocumentSnapshot<Map<String, dynamic>>? ldoc;
+    // print("start sync - for");
+    for (int i = 0; i < pages; i++) {
+      if (ldoc != null) {
+        // print("==========${ldoc!.id}");
+      }
+      List<DocumentSnapshot<Map<String, dynamic>>> news =
+          await _computeIsolate((_) async {
+        Query<Map<String, dynamic>> query = _[0];
+        List<DocumentSnapshot<Map<String, dynamic>>> news =
+            (await query.get()).docs;
+        // print("=================${news.length}");
+        return news;
+      }, args: [
+        FirestoreUtil().queryBuilder(
+          collectionPath,
+          sorts: _sorts,
+          filters: _filters,
+          limit: _size,
+          startAfterDocument: ldoc,
+        ),
+      ]);
+      if (news.isNotEmpty) {
+        for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
+          DataItem element = DataItem.fromMap({
+            "id": doc.id,
+            "data": doc.data(),
+            "name": stateName,
+            "parent": collectionPath,
+            "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+            "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+            "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+          });
+          try {
+            _raw[doc.id] = element;
+            _container.ids.add(element.path());
+            await _raw[doc.id]!.save({});
+          } catch (e) {
+            _log("newStream error(1) : $e");
+            // print("=================$e");
+          }
+        }
+        ldoc = news.last;
+        refresh();
+      }
+    }
+    // print("start sync - end for");
+    _container.lastDataCreatedAt = DateTime.now();
+    await _syncContainer();
+    // print("end sync");
+  }
+
+  Future<void> _syncCounter() async {
+    int ac = await _computeIsolate((_) async {
+      AggregateQuery query = _[0];
+      return (await query.get()).count;
+    }, args: [
+      FirestoreUtil()
+          .queryBuilder(collectionPath,
+              sorts: _sorts, filters: _filters, isCount: true)
+          .count(),
+    ]);
+    _container.params['actualCount'] = ac;
+    _container.params['size'] = _size;
+    _syncContainer();
+  }
+
+  Future<void> _syncContainer() async {
+    _container.ids = _container.ids.toSet().toList();
+    _count = _container.ids.length;
+    await _saveState();
+    refresh();
   }
 
   /// Find More Efective Data with this function
@@ -345,70 +455,73 @@ class DataLocalForFirestore extends DataLocal {
     );
   }
 
+  /// Find More Efective Data with this function
+  Future<DataItem?> get(String id) async {
+    // _log('findAsync Isolate.spawn');
+    return _raw[id];
+  }
+
   /// Insert and save DataItem
   @override
   Future<DataItem> insertOne(Map<String, dynamic> value, {String? id}) async {
     _container.seq++;
-    DataItem newData = DataItem.create(
-      id ??
-          EncryptUtil()
-              .encript(DateTime.now().toString() + _container.seq.toString()),
-      value: value,
-      name: stateName,
-      parent: "",
-      seq: _container.seq,
-    );
     try {
-      _raw[newData.id] = newData;
+      if (value['createdAt'] == null) {
+        value['createdAt'] = FieldValue.serverTimestamp();
+      }
       refresh();
+      DocumentReference ref = await FirebaseFirestore.instance
+          .collection(collectionPath)
+          .add(value);
+      DataItem newData = DataItem.create(
+        ref.id,
+        value: value,
+        name: stateName,
+        parent: collectionPath,
+        seq: _container.seq,
+      );
+      _raw[newData.id] = newData;
       await newData.save({});
       _container.ids.add(newData.path());
       _container.lastDataCreatedAt = newData.createdAt;
       _count = _container.ids.length;
-      FirebaseFirestore.instance
-          .collection(collectionPath)
-          .doc(newData.id)
-          .set(value)
-          .then((_) {});
-      _saveState();
+
+      await _saveState();
+      return newData;
     } catch (e) {
-      _log("error disini");
+      _log("error disini, $e");
       //
+      rethrow;
     }
-    return newData;
   }
 
   @override
   Future<void> insertMany(List<Map<String, dynamic>> values) async {
     for (Map<String, dynamic> value in values) {
       _container.seq++;
-      DataItem newData = DataItem.create(
-        EncryptUtil()
-            .encript(DateTime.now().toString() + _container.seq.toString()),
-        value: value,
-        name: stateName,
-        parent: "",
-        seq: _container.seq,
-      );
       try {
+        DocumentReference ref = await FirebaseFirestore.instance
+            .collection(collectionPath)
+            .add(value);
+        DataItem newData = DataItem.create(
+          ref.id,
+          value: value,
+          name: stateName,
+          parent: collectionPath,
+          seq: _container.seq,
+        );
         _raw[newData.id] = newData;
         await newData.save({});
         _container.ids.add(newData.path());
         _container.lastDataCreatedAt = newData.createdAt;
         _count = _container.ids.length;
-
-        FirebaseFirestore.instance
-            .collection(collectionPath)
-            .doc(newData.id)
-            .set(value)
-            .then((_) {});
       } catch (e) {
         //
       }
     }
     try {
       refresh();
-      _saveState();
+      await _saveState();
     } catch (e) {
       _log("error disini");
       //
@@ -427,14 +540,14 @@ class DataLocalForFirestore extends DataLocal {
 
     await _raw[id]!.save(value);
     value['updatedAt'] = FieldValue.serverTimestamp();
-    FirebaseFirestore.instance
+    await FirebaseFirestore.instance
         .collection(collectionPath)
         .doc(id)
         .update(value)
         .then((_) {});
     _container.lastDataUpdatedAt = _raw[id]?.updatedAt;
     refresh();
-    _saveState();
+    await _saveState();
     return _raw[id]!;
   }
 
@@ -451,17 +564,16 @@ class DataLocalForFirestore extends DataLocal {
       _container.ids.remove(id);
       _count = _container.ids.length;
       await prefs.remove(EncryptUtil().encript(d.path()));
-      FirebaseFirestore.instance
+      await FirebaseFirestore.instance
           .collection(collectionPath)
           .doc(id)
-          .delete()
-          .then((_) {});
+          .delete();
     } catch (e, st) {
       _log('findAsync Isolate.spawn $e, $st');
     }
 
     refresh();
-    _saveState();
+    await _saveState();
   }
 
   @override
@@ -477,7 +589,7 @@ class DataLocalForFirestore extends DataLocal {
         _container.ids.remove(id);
         _count = _container.ids.length;
         await prefs.remove(EncryptUtil().encript(d.path()));
-        FirebaseFirestore.instance
+        await FirebaseFirestore.instance
             .collection(collectionPath)
             .doc(id)
             .delete()
@@ -488,7 +600,7 @@ class DataLocalForFirestore extends DataLocal {
     }
 
     refresh();
-    _saveState();
+    await _saveState();
   }
 
   Future<void> _saveState() async {
@@ -526,6 +638,25 @@ class DataLocalForFirestore extends DataLocal {
 
     _isLoading = false;
     refresh();
+  }
+
+  Future<void> reset() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    // print(_container.ids.length);
+    for (String id in _container.ids) {
+      DataItem? d = _raw[id];
+      if (d == null) {
+        throw "Data with id $id, not found";
+      }
+      _raw.remove(id);
+      _container.ids.remove(id);
+      _count = _container.ids.length;
+      await prefs.remove(EncryptUtil().encript(d.path()));
+    }
+    await _saveState();
+    _isInit = false;
+    refresh();
+    await _initialize();
   }
 }
 
@@ -566,4 +697,40 @@ dynamic _listDataItemFind(List<dynamic> args) {
     SendPort port = args[0];
     Isolate.exit(port, result);
   }
+}
+
+Future<dynamic> _computeIsolate(Future Function(dynamic) function,
+    {dynamic args}) async {
+  final receivePort = ReceivePort();
+  var rootToken = RootIsolateToken.instance!;
+  await Isolate.spawn<_IsolateData>(
+    _isolateEntry,
+    _IsolateData(
+      token: rootToken,
+      function: function,
+      answerPort: receivePort.sendPort,
+      args: args,
+    ),
+  );
+  return await receivePort.first;
+}
+
+void _isolateEntry(_IsolateData isolateData) async {
+  BackgroundIsolateBinaryMessenger.ensureInitialized(isolateData.token);
+  final answer = await isolateData.function(isolateData.args);
+  isolateData.answerPort.send(answer);
+}
+
+class _IsolateData {
+  final RootIsolateToken token;
+  final Function(dynamic) function;
+  final SendPort answerPort;
+  final dynamic args;
+
+  _IsolateData({
+    required this.token,
+    required this.function,
+    required this.answerPort,
+    this.args,
+  });
 }

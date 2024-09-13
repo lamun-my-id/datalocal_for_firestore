@@ -68,21 +68,21 @@ class FirestoreUtil {
             descending: sort.desc == true,
           );
         }
-        if (startAfterDocument != null) {
-          q = q.startAfterDocument(startAfterDocument);
-        } else {
-          // debugPrint('tidak ada start after');
-        }
-        if (endBeforeDocument != null) {
-          q = q.endBeforeDocument(endBeforeDocument);
-        } else {
-          // debugPrint('tidak ada end before');
-        }
+      }
+      if (startAfterDocument != null) {
+        q = q.startAfterDocument(startAfterDocument);
+      } else {
+        // debugPrint('tidak ada start after');
+      }
+      if (endBeforeDocument != null) {
+        q = q.endBeforeDocument(endBeforeDocument);
+      } else {
+        // debugPrint('tidak ada end before');
+      }
+      if (limit != null) {
+        q = q.limit(limit);
       }
       if (isCount == false) {
-        if (limit != null) {
-          q = q.limit(limit);
-        }
         // if (paginations != null) {
         //   q = q.limit(query.paginations!['size']);
         // }
