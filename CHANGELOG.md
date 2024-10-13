@@ -1,3 +1,11 @@
+## 1.0.29
+* Fix Data load web
+- Fix Data Compute
+
+## 1.0.28
+* Fix Data find
+- Fix state save/load
+
 ## 1.0.27
 * Fix Data Initialize
 - Fix Stream data

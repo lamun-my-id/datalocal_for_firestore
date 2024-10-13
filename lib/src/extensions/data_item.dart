@@ -89,7 +89,7 @@ extension DataItemExtension on DataItem {
   }
 
   Future<void> overwrite(Map<String, dynamic> value) async {
-    set(value);
+    save(value);
     await upSync();
   }
 

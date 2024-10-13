@@ -2,14 +2,13 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal/datalocal.dart';
+import 'package:datalocal/utils/compute.dart';
 import 'package:datalocal/utils/encrypt.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
@@ -299,13 +298,23 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  @override
+  refresh() {
+    if (onRefresh != null) {
+      _log("refresh berjalan");
+      onRefresh!();
+    } else {
+      _log("tidak ada refresh");
+    }
+  }
+
   Future<void> _presync() async {
     // print("presync counter");
     await _syncCounter();
     // print("presync");
 
     List<DocumentSnapshot<Map<String, dynamic>>> news =
-        await _computeIsolate((_) async {
+        await DataCompute().isolate((_) async {
       Query<Map<String, dynamic>> query = _[0];
       List<DocumentSnapshot<Map<String, dynamic>>> news =
           (await query.get()).docs;
@@ -356,7 +365,7 @@ class DataLocalForFirestore extends DataLocal {
         // print("==========${ldoc!.id}");
       }
       List<DocumentSnapshot<Map<String, dynamic>>> news =
-          await _computeIsolate((_) async {
+          await await DataCompute().isolate((_) async {
         Query<Map<String, dynamic>> query = _[0];
         List<DocumentSnapshot<Map<String, dynamic>>> news =
             (await query.get()).docs;
@@ -402,7 +411,7 @@ class DataLocalForFirestore extends DataLocal {
   }
 
   Future<void> _syncCounter() async {
-    int ac = await _computeIsolate((_) async {
+    int ac = await await DataCompute().isolate((_) async {
       AggregateQuery query = _[0];
       return (await query.get()).count;
     }, args: [
@@ -434,15 +443,39 @@ class DataLocalForFirestore extends DataLocal {
     // _log('findAsync Isolate.spawn');
     Map<String, dynamic> res = {};
     try {
-      if (kIsWeb) {
-        res = _listDataItemFind([null, _raw, filters, sorts, search, paginate]);
-      } else {
-        ReceivePort rPort = ReceivePort();
-        await Isolate.spawn(_listDataItemFind,
-            [rPort.sendPort, _raw, filters, sorts, search, paginate]);
-        res = await rPort.first;
-        rPort.close();
-      }
+      res = await DataCompute().isolate((args) async {
+        Map<String, DataItem> raw = Map<String, DataItem>.from(args[0]);
+        List<DataFilter>? filters = args[1];
+        List<DataSort>? sorts = args[2];
+        DataSearch? search = args[3];
+        DataPaginate? paginate = args[4];
+
+        List<DataItem> data = raw.entries.map((entry) => entry.value).toList();
+
+        if (filters != null) {
+          data = data.filterData(filters);
+        }
+        if (sorts != null) {
+          data = data.sortData(sorts);
+        }
+        if (search != null) {
+          data = data.searchData(search);
+        }
+        Map<String, dynamic> result = {};
+        result['count'] = data.length;
+        if (paginate != null) {
+          try {
+            result['page'] = paginate.page;
+            result['pageSize'] = paginate.size;
+            data = data.paginate(paginate);
+          } catch (e) {
+            //
+          }
+        }
+        result['length'] = data.length;
+        result['data'] = data;
+        return result;
+      }, args: [_raw, filters, sorts, search, paginate]);
     } catch (e, st) {
       _log('findAsync Isolate.spawn $e, $st');
     }
@@ -456,6 +489,7 @@ class DataLocalForFirestore extends DataLocal {
   }
 
   /// Find More Efective Data with this function
+  @override
   Future<DataItem?> get(String id) async {
     // _log('findAsync Isolate.spawn');
     return _raw[id];
@@ -658,79 +692,4 @@ class DataLocalForFirestore extends DataLocal {
     refresh();
     await _initialize();
   }
-}
-
-dynamic _listDataItemFind(List<dynamic> args) {
-  Map<String, DataItem> raw = Map<String, DataItem>.from(args[1]);
-  List<DataFilter>? filters = args[2];
-  List<DataSort>? sorts = args[3];
-  DataSearch? search = args[4];
-  DataPaginate? paginate = args[5];
-
-  List<DataItem> data = raw.entries.map((entry) => entry.value).toList();
-
-  if (filters != null) {
-    data = data.filterData(filters);
-  }
-  if (sorts != null) {
-    data = data.sortData(sorts);
-  }
-  if (search != null) {
-    data = data.searchData(search);
-  }
-  Map<String, dynamic> result = {};
-  result['count'] = data.length;
-  if (paginate != null) {
-    try {
-      result['page'] = paginate.page;
-      result['pageSize'] = paginate.size;
-      data = data.paginate(paginate);
-    } catch (e) {
-      //
-    }
-  }
-  result['length'] = data.length;
-  result['data'] = data;
-  if (kIsWeb) {
-    return result;
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, result);
-  }
-}
-
-Future<dynamic> _computeIsolate(Future Function(dynamic) function,
-    {dynamic args}) async {
-  final receivePort = ReceivePort();
-  var rootToken = RootIsolateToken.instance!;
-  await Isolate.spawn<_IsolateData>(
-    _isolateEntry,
-    _IsolateData(
-      token: rootToken,
-      function: function,
-      answerPort: receivePort.sendPort,
-      args: args,
-    ),
-  );
-  return await receivePort.first;
-}
-
-void _isolateEntry(_IsolateData isolateData) async {
-  BackgroundIsolateBinaryMessenger.ensureInitialized(isolateData.token);
-  final answer = await isolateData.function(isolateData.args);
-  isolateData.answerPort.send(answer);
-}
-
-class _IsolateData {
-  final RootIsolateToken token;
-  final Function(dynamic) function;
-  final SendPort answerPort;
-  final dynamic args;
-
-  _IsolateData({
-    required this.token,
-    required this.function,
-    required this.answerPort,
-    this.args,
-  });
 }
