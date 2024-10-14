@@ -49,16 +49,15 @@ class _MyHomePageState extends State<MyHomePage> {
   TextEditingController contentController = TextEditingController();
 
   DataSearch search = DataSearch(
-    keys: [DataKey("title"), DataKey("content")],
+    ["title", "content"],
     value: "",
   );
 
   List<DataSort> sorts = [
-    DataSort(key: DataKey("createdAt", as: "Tanggal Dibuat (Z-A)"), desc: true),
-    DataSort(
-        key: DataKey("createdAt", as: "Tanggal Dibuat (A-Z)"), desc: false),
-    DataSort(key: DataKey("title", as: "Judul (A-Z)"), desc: false),
-    DataSort(key: DataKey("title", as: "Judul (Z-A)"), desc: true),
+    DataSort(DataKey("createdAt", as: "Tanggal Dibuat (Z-A)"), desc: true),
+    DataSort(DataKey("createdAt", as: "Tanggal Dibuat (A-Z)"), desc: false),
+    DataSort(DataKey("title", as: "Judul (A-Z)"), desc: false),
+    DataSort(DataKey("title", as: "Judul (Z-A)"), desc: true),
   ];
   DataPaginate dpaginate = DataPaginate(page: 1, size: 30);
 

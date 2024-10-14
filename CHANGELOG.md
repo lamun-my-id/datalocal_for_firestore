@@ -1,6 +1,9 @@
+## 1.0.30
+* Simplify DataKey
+
 ## 1.0.29
 * Fix Data load web
-- Fix Data Compute
+* Fix Data Compute
 
 ## 1.0.28
 * Fix Data find

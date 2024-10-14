@@ -179,7 +179,7 @@ class DataLocalForFirestore extends DataLocal {
         }
       }
       filterUpdate.add(DataFilter(
-        key: DataKey("createdAt"),
+        "createdAt",
         value: _container.lastDataCreatedAt,
         operator: DataFilterOperator.isGreaterThan,
       ));
@@ -188,7 +188,7 @@ class DataLocalForFirestore extends DataLocal {
             collectionPath,
             sorts: [
               DataSort(
-                key: DataKey("createdAt"),
+                "createdAt",
                 desc: true,
               ),
             ],
@@ -243,7 +243,7 @@ class DataLocalForFirestore extends DataLocal {
         }
       }
       filterUpdate.add(DataFilter(
-        key: DataKey("updatedAt"),
+        "updatedAt",
         value: _container.lastDataUpdatedAt,
         operator: DataFilterOperator.isGreaterThan,
       ));
@@ -253,7 +253,7 @@ class DataLocalForFirestore extends DataLocal {
             collectionPath,
             sorts: [
               DataSort(
-                key: DataKey("updatedAt"),
+                "updatedAt",
                 desc: true,
               ),
             ],
