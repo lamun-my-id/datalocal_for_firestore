@@ -1,3 +1,6 @@
+## 1.0.31
+* Simplify DataKey
+
 ## 1.0.30
 * Simplify DataKey
 

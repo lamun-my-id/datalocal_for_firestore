@@ -17,10 +17,19 @@ extension DataItemExtension on DataItem {
     });
   }
 
-  dynamic get(DataKey key) {
+  dynamic get(Object key) {
+    DataKey k;
+    if (key is String) {
+      k = DataKey(key);
+    } else {
+      if ((key is! DataKey)) {
+        throw "Please fill key with String or DataKey value";
+      }
+      k = key;
+    }
     try {
       dynamic value = {};
-      switch (key.key) {
+      switch (k.key) {
         case "#id":
           value = id;
           break;
@@ -32,7 +41,7 @@ extension DataItemExtension on DataItem {
           break;
         default:
           {
-            List<String> path = key.key.split(".");
+            List<String> path = k.key.split(".");
             value = data;
             for (String p in path) {
               if (value[p] is Timestamp) {
@@ -55,8 +64,8 @@ extension DataItemExtension on DataItem {
 
       return value;
     } catch (e) {
-      if (key.onKeyCatch != null) {
-        return get(DataKey(key.onKeyCatch!));
+      if (k.onKeyCatch != null) {
+        return get(DataKey(k.onKeyCatch!));
       }
       return null;
     }
