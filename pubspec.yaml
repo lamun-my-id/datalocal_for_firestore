@@ -17,7 +17,7 @@ dependencies:
   datalocal: ^1.0.31
   # datalocal:
     # path: ../data-state
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
