@@ -530,6 +530,12 @@ class DataLocalForFirestore extends DataLocal {
   }
 
   @override
+  void dispose() async {
+    _newStream?.cancel();
+    _updateStream?.cancel();
+  }
+
+  @override
   Future<void> insertMany(List<Map<String, dynamic>> values) async {
     for (Map<String, dynamic> value in values) {
       _container.seq++;
