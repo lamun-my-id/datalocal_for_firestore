@@ -1,7 +1,9 @@
 import 'package:datalocal/datalocal_extension.dart';
 import 'package:datalocal/datalocal_query_extension.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
+import 'package:datalocal_for_firestore/src/extensions/list_data_item_row.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:collection/collection.dart';
 
 extension DataLocalExtensionQuery on DataLocalForFirestore {
   /// Find More specific query Data with this function
@@ -10,8 +12,11 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
     List<DataFilter>? filters,
     List<DataSort>? sorts,
     List<dynamic>? groups,
+    int? limit,
   }) async {
-    DataQuery query = await find(filters: filters, sorts: sorts);
+    if (limit != null) assert(limit > 0, "Limit harus diatas 0");
+    DataQuery query =
+        await find(filters: filters, sorts: groups != null ? null : sorts);
     List<DataItemRow> result = await DataCompute().isolate((_) async {
       await initializeDateFormatting();
       DataQuery query = _[0];
@@ -26,10 +31,16 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
             throw "Please fill key with String or DataKey value";
           }).toList() ??
           [];
-      List<List<DataItem>> dataGroup = query.data.groupData(k);
+      dynamic groupQueries = []
+        ..addAll(selects.whereType<QueryGroup>().toList())
+        ..addAll((groups ?? []).where((_) => _ is String).toList());
+      List<List<DataItem>> dataGroup =
+          // (groups ?? []).isEmpty && groupQueries.isNotEmpty
+          //     ? [query.data]
+          //     :
+          query.data.groupData(k);
       List<DataItemRow> result = [];
       for (List<DataItem> dg in dataGroup) {
-        List<dynamic> groupQueries = selects.whereType<QueryGroup>().toList();
         List<dynamic> normQueries = selects
             .where((_) => _ is String || _ is DataKey || _ is DataSelectDate)
             .map((_) {
@@ -63,6 +74,8 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
                 } catch (e) {
                   temp[gQ.as ?? 'averageOf${gQ.key}'] = item.get(gQ.key) ?? 0;
                 }
+              } else {
+                temp[gQ] = item.get(gQ);
               }
             }
             if (gQ is QueryAverage) {
@@ -82,6 +95,9 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
             }
           }
           result.add(DataItemRow._fromMap(temp));
+          if (sorts != null) {
+            result = result.sortData(sorts);
+          }
         } else {
           if (normQueries.isNotEmpty) {
             for (DataItem item in dg) {
@@ -96,6 +112,9 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
       }
       return result;
     }, args: [query, selects, filters, sorts, groups]);
+    if (limit != null) {
+      result = result.slices(limit).toList().first;
+    }
     return result;
   }
 }

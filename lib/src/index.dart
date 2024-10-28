@@ -535,11 +535,12 @@ class DataLocalForFirestore extends DataLocal {
   }
 
   Future<void> _sync() async {
-    // print("start sync");
+    print("start sync");
     int ac = _container.params['actualCount'];
+    print("$ac");
     int pages = (ac / _size).ceil();
     DocumentSnapshot<Map<String, dynamic>>? ldoc;
-    // print("start sync - for");
+    print("start sync - for");
     for (int i = 0; i < pages; i++) {
       if (ldoc != null) {
         // print("==========${ldoc!.id}");
@@ -549,7 +550,7 @@ class DataLocalForFirestore extends DataLocal {
         Query<Map<String, dynamic>> query = _[0];
         List<DocumentSnapshot<Map<String, dynamic>>> news =
             (await query.get()).docs;
-        // print("=================${news.length}");
+        print("=================${news.length}");
         return news;
       }, args: [
         FirestoreUtil().queryBuilder(
