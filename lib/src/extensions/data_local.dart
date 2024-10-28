@@ -1,3 +1,5 @@
+// ignore_for_file: no_wildcard_variable_uses
+
 import 'package:datalocal/datalocal_extension.dart';
 import 'package:datalocal/datalocal_query_extension.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
@@ -31,9 +33,19 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
             throw "Please fill key with String or DataKey value";
           }).toList() ??
           [];
-      dynamic groupQueries = []
-        ..addAll(selects.whereType<QueryGroup>().toList())
-        ..addAll((groups ?? []).where((_) => _ is String).toList());
+      dynamic groupQueries = [
+        ...selects.whereType<QueryGroup>(),
+        ...(groups ?? []).whereType<String>()
+      ];
+      List<dynamic> normQueries = selects
+          .where((_) => _ is String || _ is DataKey || _ is DataSelectDate)
+          .map((_) {
+        if (_ is String) {
+          return DataKey(_);
+        } else {
+          return _;
+        }
+      }).toList();
       List<List<DataItem>> dataGroup =
           // (groups ?? []).isEmpty && groupQueries.isNotEmpty
           //     ? [query.data]
@@ -41,15 +53,6 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
           query.data.groupData(k);
       List<DataItemRow> result = [];
       for (List<DataItem> dg in dataGroup) {
-        List<dynamic> normQueries = selects
-            .where((_) => _ is String || _ is DataKey || _ is DataSelectDate)
-            .map((_) {
-          if (_ is String) {
-            return DataKey(_);
-          } else {
-            return _;
-          }
-        }).toList();
         if (groupQueries.isNotEmpty) {
           Map<String, dynamic> temp = {};
           for (dynamic gQ in groupQueries) {

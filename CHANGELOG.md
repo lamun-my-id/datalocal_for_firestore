@@ -1,3 +1,7 @@
+
+## 1.0.35
+* Fix query execute, add sort and limit in execute query
+
 ## 1.0.34
 * DataFilter simplify
 * Data query execute, now you can use function like average, summary and count with queryexecute
