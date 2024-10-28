@@ -20,44 +20,20 @@ class FirestoreUtil {
         for (int i = 0; i < filters.length; i++) {
           // log(getVariable(query.filters![i]));
           DataFilter f = filters[i];
-          switch (f.operator) {
-            case DataFilterOperator.isEqualTo:
-              q = q.where(f.key.key, isEqualTo: f.value);
-              break;
-            case DataFilterOperator.isNotEqualTo:
-              q = q.where(f.key.key, isNotEqualTo: f.value);
-              break;
-            case DataFilterOperator.isGreaterThanOrEqualTo:
-              q = q.where(f.key.key, isGreaterThanOrEqualTo: f.value);
-              break;
-            case DataFilterOperator.isGreaterThan:
-              q = q.where(f.key.key, isGreaterThan: f.value);
-              break;
-            case DataFilterOperator.isLessThanOrEqualTo:
-              q = q.where(f.key.key, isLessThanOrEqualTo: f.value);
-              break;
-            case DataFilterOperator.isLessThan:
-              q = q.where(f.key.key, isLessThan: f.value);
-              break;
-            case DataFilterOperator.whereIn:
-              q = q.where(f.key.key, whereIn: f.value);
-              break;
-            case DataFilterOperator.whereNotIn:
-              q = q.where(f.key.key, whereNotIn: f.value);
-              break;
-            case DataFilterOperator.arrayContains:
-              q = q.where(f.key.key, arrayContains: f.value);
-              break;
-            case DataFilterOperator.arrayContainsAny:
-              q = q.where(f.key.key, arrayContainsAny: f.value);
-              break;
-            case DataFilterOperator.isNull:
-              q = q.where(f.key.key, isNull: f.value);
-              break;
-            default:
-              q = q.where(f.key.key, isEqualTo: f.value);
-              break;
-          }
+          q = q.where(
+            f.key.key,
+            isEqualTo: f.isEqualTo,
+            isNotEqualTo: f.isNotEqualTo,
+            isGreaterThan: f.isGreaterThan,
+            isGreaterThanOrEqualTo: f.isGreaterThanOrEqualTo,
+            isLessThan: f.isLessThan,
+            isLessThanOrEqualTo: f.isLessThanOrEqualTo,
+            isNull: f.isNull,
+            whereIn: f.whereIn,
+            whereNotIn: f.whereNotIn,
+            arrayContains: f.arrayContains,
+            arrayContainsAny: f.arrayContainsAny,
+          );
         }
       }
 

@@ -69,108 +69,103 @@ extension ListDataItem on List<DataItem> {
       DataItem d = result[index];
       for (DataFilter f in parameters) {
         try {
-          switch (f.operator) {
-            case DataFilterOperator.isEqualTo:
-              if (d.get(f.key) == f.value) {
+          if (f.isEqualTo != null) {
+            if (d.get(f.key) == f.isEqualTo) {
+            } else {
+              i.add(index);
+            }
+          }
+          if (f.isNotEqualTo != null) {
+            if (d.get(f.key) != f.isNotEqualTo) {
+            } else {
+              i.add(index);
+            }
+          }
+          if (f.isGreaterThanOrEqualTo != null) {
+            if (f.isGreaterThanOrEqualTo is DateTime) {
+              if ((DateTimeUtils.toDateTime(d.get(f.key))!)
+                  .isAfter(f.isGreaterThanOrEqualTo as DateTime)) {
               } else {
                 i.add(index);
               }
-              break;
-            case DataFilterOperator.isNotEqualTo:
-              if (d.get(f.key) != f.value) {
+            } else {
+              if (d.get(f.key) >= f.isGreaterThanOrEqualTo) {
               } else {
                 i.add(index);
               }
-              break;
-            case DataFilterOperator.isGreaterThanOrEqualTo:
-              if (f.value.runtimeType == DateTime) {
-                if ((d.get(f.key) as DateTime).isAfter(f.value as DateTime)) {
-                } else {
-                  i.add(index);
-                }
-              } else {
-                if (d.get(f.key) >= f.value) {
-                } else {
-                  i.add(index);
-                }
-              }
-              break;
-            case DataFilterOperator.isGreaterThan:
-              if (f.value.runtimeType == DateTime) {
-                if ((d.get(f.key) as DateTime).isAfter(f.value as DateTime)) {
-                } else {
-                  i.add(index);
-                }
-              } else {
-                if (d.get(f.key) > f.value) {
-                } else {
-                  i.add(index);
-                }
-              }
-              break;
-            case DataFilterOperator.isLessThanOrEqualTo:
-              if (f.value.runtimeType == DateTime) {
-                if ((d.get(f.key) as DateTime).isBefore(f.value as DateTime)) {
-                } else {
-                  i.add(index);
-                }
-              } else {
-                if (d.get(f.key) <= f.value) {
-                } else {
-                  i.add(index);
-                }
-              }
-              break;
-            case DataFilterOperator.isLessThan:
-              if (f.value.runtimeType == DateTime) {
-                if ((d.get(f.key) as DateTime).isBefore(f.value as DateTime)) {
-                } else {
-                  i.add(index);
-                }
-              } else {
-                if (d.get(f.key) < f.value) {
-                } else {
-                  i.add(index);
-                }
-              }
-              break;
-            case DataFilterOperator.whereIn:
-              if ((f.value as List).contains(d.get(f.key))) {
+            }
+          }
+          if (f.isGreaterThan != null) {
+            if (f.isGreaterThan is DateTime) {
+              if ((DateTimeUtils.toDateTime(d.get(f.key))!)
+                  .isAfter(f.isGreaterThan as DateTime)) {
               } else {
                 i.add(index);
               }
-              break;
-            case DataFilterOperator.whereNotIn:
-              if (!(f.value as List).contains(d.get(f.key))) {
+            } else {
+              if (d.get(f.key) > f.isGreaterThan) {
               } else {
                 i.add(index);
               }
-              break;
-            case DataFilterOperator.arrayContains:
-              if (((d.get(f.key) ?? []) as List).contains(f.value)) {
+            }
+          }
+          if (f.isLessThanOrEqualTo != null) {
+            if (f.isLessThanOrEqualTo is DateTime) {
+              if ((DateTimeUtils.toDateTime(d.get(f.key))!)
+                  .isBefore(f.isLessThanOrEqualTo as DateTime)) {
               } else {
                 i.add(index);
               }
-              break;
-            case DataFilterOperator.arrayContainsAny:
-              if (((d.get(f.key) ?? []) as List).containAny(f.value as List)) {
+            } else {
+              if (d.get(f.key) <= f.isLessThanOrEqualTo) {
               } else {
                 i.add(index);
               }
-              break;
-            case DataFilterOperator.isNull:
-              if (f.value == "false" && d.get(f.key) == null) {
-                i.add(index);
-              } else if (f.value == "true" && d.get(f.key) != null) {
-                i.add(index);
-              }
-              break;
-            default:
-              if (d.get(f.key) == f.value) {
+            }
+          }
+          if (f.isLessThan != null) {
+            if (f.isLessThan is DateTime) {
+              if ((DateTimeUtils.toDateTime(d.get(f.key))!)
+                  .isBefore(f.isLessThan as DateTime)) {
               } else {
                 i.add(index);
               }
-              break;
+            } else {
+              if (d.get(f.key) < f.isLessThan) {
+              } else {
+                i.add(index);
+              }
+            }
+          }
+          if (f.whereIn != null) {
+            if ((f.whereIn as List).contains(d.get(f.key))) {
+            } else {
+              i.add(index);
+            }
+          }
+          if (f.whereNotIn != null) {
+            if ((f.whereIn as List).contains(d.get(f.key))) {
+            } else {
+              i.add(index);
+            }
+          }
+          if (f.arrayContains != null) {
+            if ((d.get(f.key) as List).contains(f.arrayContains)) {
+            } else {
+              i.add(index);
+            }
+          }
+          if (f.arrayContainsAny != null) {
+            if ((d.get(f.key) as List).contains(f.arrayContains)) {
+            } else {
+              i.add(index);
+            }
+          }
+          if (f.isNull != null) {
+            if ((d.get(f.key) != null) == (f.isNull as bool)) {
+            } else {
+              i.add(index);
+            }
           }
         } catch (e) {
           // debugPrint("===========asasasas=============${d.get(f.key)}");

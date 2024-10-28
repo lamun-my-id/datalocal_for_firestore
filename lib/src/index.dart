@@ -5,14 +5,13 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal/datalocal.dart';
-import 'package:datalocal/utils/compute.dart';
+import 'package:datalocal/datalocal_extension.dart';
 import 'package:datalocal/utils/encrypt.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
-import 'package:datalocal_for_firestore/src/extensions/list_data_item.dart';
 
 class DataLocalForFirestore extends DataLocal {
   String collectionPath;
@@ -25,7 +24,34 @@ class DataLocalForFirestore extends DataLocal {
   }) : _debugMode = debugMode;
 
   // Static Func
-  /// Used for the first time initialize [DataLocalForFirestore]
+
+  /// Used for the first time initialize with data get per duration [DataLocalForFirestore]
+  static Future<DataLocalForFirestore> periodic(
+    String stateName, {
+    Function()? onRefresh,
+    bool? debugMode,
+    required String collectionPath,
+    Duration refreshDuration = const Duration(seconds: 10),
+    List<DataSort>? sorts,
+    List<DataFilter>? filters,
+    int size = 100,
+  }) async {
+    DataLocalForFirestore result = DataLocalForFirestore(
+      stateName,
+      onRefresh: onRefresh,
+      debugMode: debugMode ?? false,
+      collectionPath: collectionPath,
+    );
+    result._sorts = sorts;
+    result._filters = filters;
+    result._size = size;
+    result._isStream = false;
+    result._refreshDuration = refreshDuration;
+    await result._initialize();
+    return result;
+  }
+
+  /// Used for the first time initialize with data stream [DataLocalForFirestore]
   static Future<DataLocalForFirestore> stream(
     String stateName, {
     Function()? onRefresh,
@@ -44,6 +70,7 @@ class DataLocalForFirestore extends DataLocal {
     result._sorts = sorts;
     result._filters = filters;
     result._size = size;
+    result._isStream = true;
     await result._initialize();
     return result;
   }
@@ -52,6 +79,9 @@ class DataLocalForFirestore extends DataLocal {
   List<DataFilter>? _filters;
 
   late String _name;
+
+  late bool _isStream;
+  late Duration _refreshDuration;
 
   late int _size;
 
@@ -134,10 +164,18 @@ class DataLocalForFirestore extends DataLocal {
           // print('=======sync berhasil');
           await _saveState();
           // print('=======save');
-          _stream();
+          if (_isStream) {
+            _stream();
+          } else {
+            _async();
+          }
         });
       } else {
-        _stream();
+        if (_isStream) {
+          _stream();
+        } else {
+          _async();
+        }
       }
       refresh();
     } catch (e) {
@@ -148,6 +186,150 @@ class DataLocalForFirestore extends DataLocal {
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newStream;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _updateStream;
+  StreamSubscription? _periodicStream;
+  Stream? _periodic;
+
+  Future<void> _async() async {
+    try {
+      _periodic = Stream.periodic(_refreshDuration, (_) async {
+        await _getNews();
+        await _getUpdates();
+        return _;
+      });
+
+      _periodicStream = _periodic?.listen((e) {
+        // print(e);
+      });
+    } catch (e) {
+      //
+    }
+  }
+
+  _getNews() async {
+    try {
+      List<DataFilter>? filterUpdate = [];
+      if (_filters != null) {
+        for (DataFilter filter in _filters!) {
+          if (filter.key.key != "updatedAt" &&
+              filter.key.key != "createdAt" &&
+              filter.key.key != 'deletedAt') {
+            filterUpdate.add(filter);
+          }
+        }
+      }
+      filterUpdate.add(DataFilter(
+        "createdAt",
+        isGreaterThan: _container.lastDataCreatedAt,
+      ));
+      FirestoreUtil()
+          .queryBuilder(
+            collectionPath,
+            sorts: [
+              DataSort(
+                "createdAt",
+                desc: true,
+              ),
+            ],
+            filters: filterUpdate,
+          )
+          .get()
+          .then((event) async {
+        if (event.docs.isNotEmpty) {
+          for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
+            DataItem element = DataItem.fromMap({
+              "id": doc.id,
+              "data": doc.data(),
+              "name": stateName,
+              "parent": collectionPath,
+              "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+              "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+              "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+            });
+            try {
+              _raw[doc.id] = element;
+              _container.ids.add(element.path());
+              await _raw[doc.id]!.save({});
+            } catch (e) {
+              _log("newStream error(1) : $e");
+            }
+          }
+          _container.lastDataCreatedAt =
+              DateTimeUtils.toDateTime(event.docs.first['createdAt']);
+          _syncCounter();
+          _log("new Stream available, ${_container.lastDataCreatedAt}");
+        } else {
+          _log("new Stream unavailable, ${_container.lastDataCreatedAt}");
+        }
+      });
+    } catch (e) {
+      _log("newStream error(2) : $e");
+    }
+  }
+
+  _getUpdates() async {
+    try {
+      List<DataFilter>? filterUpdate = [];
+      if (_filters != null) {
+        for (DataFilter filter in _filters!) {
+          if (filter.key.key != "updatedAt" &&
+              filter.key.key != "createdAt" &&
+              filter.key.key != 'deletedAt') {
+            filterUpdate.add(filter);
+          }
+        }
+      }
+      filterUpdate.add(DataFilter(
+        "updatedAt",
+        isGreaterThan: _container.lastDataUpdatedAt,
+      ));
+      // _log('start stream $collectionPath');
+      FirestoreUtil()
+          .queryBuilder(
+            collectionPath,
+            sorts: [
+              DataSort(
+                "updatedAt",
+                desc: true,
+              ),
+            ],
+            filters: filterUpdate,
+          )
+          .get()
+          .then((event) async {
+        // _log('listen stream $collectionPath');
+        if (event.docs.isNotEmpty) {
+          for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
+            DataItem element = DataItem.fromMap({
+              "id": doc.id,
+              "data": doc.data(),
+              "name": stateName,
+              "parent": collectionPath,
+              "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+              "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+              "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+            });
+            try {
+              _raw[doc.id] = element;
+              await _raw[doc.id]!.save({});
+            } catch (e) {
+              _log("newStream error(1) : $e");
+              //
+            }
+          }
+          _count = _container.ids.length;
+          _container.lastDataUpdatedAt =
+              DateTimeUtils.toDateTime(event.docs.first['updatedAt']);
+          _syncCounter();
+          _log('update available, ${_container.lastDataUpdatedAt}');
+          refresh();
+        } else {
+          _log('update unavailable, ${_container.lastDataUpdatedAt}');
+        }
+      });
+    } catch (e) {
+      _log("updateStream error(2) : $e");
+    }
+  }
 
   Future<void> _stream() async {
     // print("Stream started");
@@ -180,8 +362,7 @@ class DataLocalForFirestore extends DataLocal {
       }
       filterUpdate.add(DataFilter(
         "createdAt",
-        value: _container.lastDataCreatedAt,
-        operator: DataFilterOperator.isGreaterThan,
+        isGreaterThan: _container.lastDataCreatedAt,
       ));
       _newStream = FirestoreUtil()
           .queryBuilder(
@@ -244,8 +425,7 @@ class DataLocalForFirestore extends DataLocal {
       }
       filterUpdate.add(DataFilter(
         "updatedAt",
-        value: _container.lastDataUpdatedAt,
-        operator: DataFilterOperator.isGreaterThan,
+        isGreaterThan: _container.lastDataUpdatedAt,
       ));
       // _log('start stream $collectionPath');
       _updateStream = FirestoreUtil()
@@ -533,6 +713,7 @@ class DataLocalForFirestore extends DataLocal {
   void dispose() async {
     _newStream?.cancel();
     _updateStream?.cancel();
+    _periodicStream?.cancel();
   }
 
   @override

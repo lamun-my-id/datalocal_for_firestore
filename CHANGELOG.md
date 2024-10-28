@@ -1,3 +1,12 @@
+## 1.0.34
+* DataFilter simplify
+* Data query execute, now you can use function like average, summary and count with queryexecute
+
+## 1.0.33
+* Add other method than stream name periodic, now you can automatic check data by the periodic of time
+* Add Periodic wuth custom Duration
+* Fix load state
+
 ## 1.0.32
 * Dispose stream
 

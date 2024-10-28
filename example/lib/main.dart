@@ -147,7 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> initialize() async {
     isLoading = true;
     setState(() {});
-    state = await DataLocalForFirestore.stream(
+    state = await DataLocalForFirestore.periodic(
       "notes27",
       collectionPath: "notes",
       onRefresh: () {
@@ -203,294 +203,301 @@ class _MyHomePageState extends State<MyHomePage> {
       body: SizedBox(
         width: width,
         height: MediaQuery.of(context).size.height,
-        child: Column(
-          children: [
-            InkWell(
-              onTap: () async {
-                // print("Josh");
-              },
-              child: Text(
-                "Klik untuk josh ($message)",
-              ),
-            ),
-            // Expanded(
-            //   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            //       stream:
-            //           FirebaseFirestore.instance.collection("locs").snapshots(),
-            //       builder: (_, snapshot) {
-            //         if (!snapshot.hasData) {
-            //           return const Text("Loading");
-            //         }
-            //         return SingleChildScrollView(
-            //           child: Column(
-            //             children:
-            //                 List.generate(snapshot.data!.docs.length, (index) {
-            //               DocumentSnapshot<Map<String, dynamic>> e =
-            //                   snapshot.data!.docs[index];
-
-            //               DataItem d = DataItem().setFromDoc(e);
-            //               return Column(
-            //                 children: [
-            //                   Text(e.id),
-            //                   Text(e.data()!['geo'].toString()),
-            //                   Text(d.id),
-            //                   Text(DataItem.fromMap(jsonDecode(d.toJson()))
-            //                       .get(DataKey("geo.latitude"))
-            //                       .toString()),
-            //                 ],
-            //               );
-            //             }),
-            //           ),
-            //         );
-            //       }),
-            // ),
-            // StreamBuilder(
-            //   stream:
-            //       FirebaseFirestore.instance.collection("notes").snapshots(),
-            //   builder: (_, snapshot) {
-            //     if (!snapshot.hasData) {
-            //       return const SizedBox(
-            //         child: Text("Loading"),
-            //       );
-            //     } else {
-            //       return Text("${snapshot.data!.docs.length}");
-            //     }
-            //   },
-            // ),
-            // Text(state.data.length.toString()),
-            Expanded(
-              flex: 5,
-              child: FutureBuilder<DataQuery>(
-                // future: state.find(),
-                future: state.find(
-                  sorts: [
-                    sort ?? sorts[3],
-                  ],
-                  search: (search.value ?? "").isNotEmpty ? search : null,
-                  paginate: dpaginate,
-                ),
-                builder: (_, snapshot) {
-                  if (!snapshot.hasData || snapshot.hasError) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  }
-                  DataQuery query = snapshot.data!;
-                  List<DataItem> notes = query.data;
-                  return Column(
-                    children: [
-                      Text(query.count.toString()),
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          itemCount: notes.length,
-                          itemBuilder: (_, index) {
-                            DataItem data = notes[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              child: InkWell(
-                                onTap: () => openForm(data),
-                                child: Container(
-                                  width: width,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      SizedBox(
-                                        width: width,
-                                        child: Text(
-                                          data.get(DataKey("title")),
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        data.get(DataKey("content")),
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                          "${data.get(DataKey("#createdAt")) ?? "-"}")
-                                      // Text(
-                                      //   DateTimeUtils.dateFormat(
-                                      //           data.get("createdAt")) ??
-                                      //       "",
-                                      //   overflow: TextOverflow.ellipsis,
-                                      //   style: const TextStyle(
-                                      //     fontSize: 12,
-                                      //   ),
-                                      // ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            Expanded(
-              flex: 5,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    top: BorderSide(),
+        child: Builder(
+          builder: (_) {
+            if (isLoading) {
+              return const Text("Jika loading maka loading");
+            }
+            return Column(
+              children: [
+                InkWell(
+                  onTap: () async {
+                    // print("Josh");
+                  },
+                  child: Text(
+                    "Klik untuk josh ($message)",
                   ),
                 ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: width,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                              ),
-                              child: const Text(
-                                "Title",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                            TextField(
-                              controller: titleController,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                            Container(
-                              width: width,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                              ),
-                              child: const Text(
-                                "Content",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                            TextField(
-                              controller: contentController,
-                              minLines: 4,
-                              maxLines: 100,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                // Expanded(
+                //   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                //       stream:
+                //           FirebaseFirestore.instance.collection("locs").snapshots(),
+                //       builder: (_, snapshot) {
+                //         if (!snapshot.hasData) {
+                //           return const Text("Loading");
+                //         }
+                //         return SingleChildScrollView(
+                //           child: Column(
+                //             children:
+                //                 List.generate(snapshot.data!.docs.length, (index) {
+                //               DocumentSnapshot<Map<String, dynamic>> e =
+                //                   snapshot.data!.docs[index];
+
+                //               DataItem d = DataItem().setFromDoc(e);
+                //               return Column(
+                //                 children: [
+                //                   Text(e.id),
+                //                   Text(e.data()!['geo'].toString()),
+                //                   Text(d.id),
+                //                   Text(DataItem.fromMap(jsonDecode(d.toJson()))
+                //                       .get(DataKey("geo.latitude"))
+                //                       .toString()),
+                //                 ],
+                //               );
+                //             }),
+                //           ),
+                //         );
+                //       }),
+                // ),
+                // StreamBuilder(
+                //   stream:
+                //       FirebaseFirestore.instance.collection("notes").snapshots(),
+                //   builder: (_, snapshot) {
+                //     if (!snapshot.hasData) {
+                //       return const SizedBox(
+                //         child: Text("Loading"),
+                //       );
+                //     } else {
+                //       return Text("${snapshot.data!.docs.length}");
+                //     }
+                //   },
+                // ),
+                // Text(state.data.length.toString()),
+                Expanded(
+                  flex: 5,
+                  child: FutureBuilder<DataQuery>(
+                    // future: state.find(),
+                    future: state.find(
+                      sorts: [
+                        sort ?? sorts[3],
+                      ],
+                      search: (search.value ?? "").isNotEmpty ? search : null,
+                      paginate: dpaginate,
                     ),
-                    Container(
-                      height: 60,
-                      width: width,
-                      color: Colors.grey[50],
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.end,
+                    builder: (_, snapshot) {
+                      if (!snapshot.hasData || snapshot.hasError) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                      DataQuery query = snapshot.data!;
+                      List<DataItem> notes = query.data;
+                      return Column(
                         children: [
-                          if (selectedData != null)
-                            InkWell(
-                              onTap: () => delete(),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  "Delete",
-                                  style: TextStyle(
-                                      // color: Colors.white,
-                                      ),
-                                ),
-                              ),
-                            ),
-                          const Expanded(child: SizedBox()),
-                          if (selectedData != null)
-                            InkWell(
-                              onTap: () => closeForm(),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  "Cancel",
-                                  style: TextStyle(
-                                      // color: Colors.white,
-                                      ),
-                                ),
-                              ),
-                            ),
-                          const SizedBox(
-                            width: 16,
-                          ),
-                          InkWell(
-                            onTap: () => save(),
-                            child: Container(
+                          Text(query.count.toString()),
+                          Expanded(
+                            child: ListView.builder(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 8,
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.deepPurple,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                "Save",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                ),
-                              ),
+                              itemCount: notes.length,
+                              itemBuilder: (_, index) {
+                                DataItem data = notes[index];
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  child: InkWell(
+                                    onTap: () => openForm(data),
+                                    child: Container(
+                                      width: width,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 16,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          SizedBox(
+                                            width: width,
+                                            child: Text(
+                                              data.get(DataKey("title")),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            data.get(DataKey("content")),
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                              "${data.get(DataKey("#createdAt")) ?? "-"}")
+                                          // Text(
+                                          //   DateTimeUtils.dateFormat(
+                                          //           data.get("createdAt")) ??
+                                          //       "",
+                                          //   overflow: TextOverflow.ellipsis,
+                                          //   style: const TextStyle(
+                                          //     fontSize: 12,
+                                          //   ),
+                                          // ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
+                      );
+                    },
+                  ),
+                ),
+                Expanded(
+                  flex: 5,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        top: BorderSide(),
                       ),
                     ),
-                  ],
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: width,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  child: const Text(
+                                    "Title",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                                TextField(
+                                  controller: titleController,
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                                Container(
+                                  width: width,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  child: const Text(
+                                    "Content",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                                TextField(
+                                  controller: contentController,
+                                  minLines: 4,
+                                  maxLines: 100,
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Container(
+                          height: 60,
+                          width: width,
+                          color: Colors.grey[50],
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (selectedData != null)
+                                InkWell(
+                                  onTap: () => delete(),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      "Delete",
+                                      style: TextStyle(
+                                          // color: Colors.white,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              const Expanded(child: SizedBox()),
+                              if (selectedData != null)
+                                InkWell(
+                                  onTap: () => closeForm(),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      "Cancel",
+                                      style: TextStyle(
+                                          // color: Colors.white,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(
+                                width: 16,
+                              ),
+                              InkWell(
+                                onTap: () => save(),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepPurple,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    "Save",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
