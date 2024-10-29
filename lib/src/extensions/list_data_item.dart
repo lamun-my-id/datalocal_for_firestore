@@ -77,6 +77,7 @@ extension ListDataItem on List<DataItem> {
             }
           }
           if (f.isNotEqualTo != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if (d.get(f.key) != f.isNotEqualTo) {
             } else {
               i.add(index);
