@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 class FirestoreUtil {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// Query Builder Firebase Firestore
   Query<Map<String, dynamic>> queryBuilder(
     collectionPath, {
     List<DataFilter>? filters,
@@ -72,6 +73,7 @@ class FirestoreUtil {
     }
   }
 
+  /// Data Insert Firebase Firestore
   Future<String> insert(
     String collectionPath, {
     required Map<String, dynamic> value,
@@ -88,6 +90,7 @@ class FirestoreUtil {
     return ref.id;
   }
 
+  /// Data get Firebase Firestore
   Future<DocumentSnapshot<Map<String, dynamic>>> get(
     String collectionPath, {
     required String id,
@@ -97,6 +100,7 @@ class FirestoreUtil {
     return ref;
   }
 
+  /// Data Insert and get Firebase Firestore
   Future<DocumentSnapshot<Map<String, dynamic>>> insertAndGet({
     required String collectionPath,
     required Map<String, dynamic> value,
@@ -107,6 +111,7 @@ class FirestoreUtil {
     return await get(collectionPath, id: id);
   }
 
+  /// Data Update Firebase Firestore
   Future<void> update(
     String collectionPath, {
     required String id,
@@ -121,6 +126,7 @@ class FirestoreUtil {
     await _firestore.collection(collectionPath).doc(id).update(data);
   }
 
+  /// Data Update and Get Firebase Firestore
   Future<DocumentSnapshot<Map<String, dynamic>>> updateAndGet(
     String collectionPath, {
     required String id,
@@ -135,6 +141,7 @@ class FirestoreUtil {
     return await get(collectionPath, id: id);
   }
 
+  /// Data Delete Firebase Firestore
   Future<void> delete(
     String collectionPath, {
     required String id,

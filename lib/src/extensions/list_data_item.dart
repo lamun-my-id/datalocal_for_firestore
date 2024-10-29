@@ -1,7 +1,7 @@
 import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
 import 'package:datalocal_for_firestore/src/extensions/list.dart';
-import 'package:datalocal/utils/date_time.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
+import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 
 extension ListDataItem on List<DataItem> {
   /// Part Extension of [List<DataItem>] to sort data
@@ -70,6 +70,7 @@ extension ListDataItem on List<DataItem> {
       for (DataFilter f in parameters) {
         try {
           if (f.isEqualTo != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if (d.get(f.key) == f.isEqualTo) {
             } else {
               i.add(index);
@@ -82,6 +83,7 @@ extension ListDataItem on List<DataItem> {
             }
           }
           if (f.isGreaterThanOrEqualTo != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if (f.isGreaterThanOrEqualTo is DateTime) {
               if ((DateTimeUtils.toDateTime(d.get(f.key))!)
                   .isAfter(f.isGreaterThanOrEqualTo as DateTime)) {
@@ -96,6 +98,7 @@ extension ListDataItem on List<DataItem> {
             }
           }
           if (f.isGreaterThan != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if (f.isGreaterThan is DateTime) {
               if ((DateTimeUtils.toDateTime(d.get(f.key))!)
                   .isAfter(f.isGreaterThan as DateTime)) {
@@ -110,6 +113,7 @@ extension ListDataItem on List<DataItem> {
             }
           }
           if (f.isLessThanOrEqualTo != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if (f.isLessThanOrEqualTo is DateTime) {
               if ((DateTimeUtils.toDateTime(d.get(f.key))!)
                   .isBefore(f.isLessThanOrEqualTo as DateTime)) {
@@ -124,6 +128,7 @@ extension ListDataItem on List<DataItem> {
             }
           }
           if (f.isLessThan != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if (f.isLessThan is DateTime) {
               if ((DateTimeUtils.toDateTime(d.get(f.key))!)
                   .isBefore(f.isLessThan as DateTime)) {
@@ -138,24 +143,28 @@ extension ListDataItem on List<DataItem> {
             }
           }
           if (f.whereIn != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if ((f.whereIn as List).contains(d.get(f.key))) {
             } else {
               i.add(index);
             }
           }
           if (f.whereNotIn != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if ((f.whereIn as List).contains(d.get(f.key))) {
             } else {
               i.add(index);
             }
           }
           if (f.arrayContains != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if ((d.get(f.key) as List).contains(f.arrayContains)) {
             } else {
               i.add(index);
             }
           }
           if (f.arrayContainsAny != null) {
+            if ((d.get(f.key)) == null) throw "data null";
             if ((d.get(f.key) as List).contains(f.arrayContains)) {
             } else {
               i.add(index);
@@ -168,6 +177,7 @@ extension ListDataItem on List<DataItem> {
             }
           }
         } catch (e) {
+          i.add(index);
           // debugPrint("===========asasasas=============${d.get(f.key)}");
           // debugPrint("===========asasasas=============${d.get(f.key)}");
           // result.add(d);

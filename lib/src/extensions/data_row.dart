@@ -7,6 +7,7 @@ import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.dart';
 
 extension DataRowExtension on DataItemRow {
+  /// get value of DataItemRow
   dynamic get(Object key) {
     DataKey k;
     if (key is String) {

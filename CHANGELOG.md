@@ -1,3 +1,5 @@
+## 1.0.36
+* Fix saved & load data firebase type (Timestamp)
 
 ## 1.0.35
 * Fix query execute, add sort and limit in execute query

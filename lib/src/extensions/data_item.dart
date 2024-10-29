@@ -4,9 +4,11 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
+import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.dart';
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 
 extension DataItemExtension on DataItem {
+  // Modeling DataItem from DocumentSnapshot
   DataItem setFromDoc(DocumentSnapshot<Map<String, dynamic>> value) {
     return DataItem.fromMap({
       "id": value.id,
@@ -17,11 +19,15 @@ extension DataItemExtension on DataItem {
     });
   }
 
+  // get object inside DataItem
   dynamic get(Object key) {
     DataKey k;
     if (key is String) {
       k = DataKey(key);
     } else {
+      if (key is DataSelectDate) {
+        return DateTimeUtils.dateFormat(get(key.key), format: key.format);
+      }
       if ((key is! DataKey)) {
         throw "Please fill key with String or DataKey value";
       }
@@ -71,41 +77,24 @@ extension DataItemExtension on DataItem {
     }
   }
 
-  String toJson() {
-    return jsonEncode(
-      toMap(),
-      toEncodable: (_) {
-        if (_ is DateTime) {
-          return DateTimeUtils.toDateTime(_).toString();
-        } else if (_ is Timestamp) {
-          return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
-              .toString();
-        } else if (_ is GeoPoint) {
-          return jsonEncode({
-            "latitude": _.latitude,
-            "longitude": _.longitude,
-          });
-        } else {
-          return "";
-        }
-      },
-    );
-  }
-
+  // update DataItem
   Future<void> update(Map<String, dynamic> value) async {
     save(value);
     await upSync();
   }
 
+  // update & overwrite DataItem
   Future<void> overwrite(Map<String, dynamic> value) async {
     save(value);
     await upSync();
   }
 
+  // Sync cloud firestore with dataitem
   Future<void> upSync() async {
     await FirebaseFirestore.instance.collection(parent).doc(id).update(data);
   }
 
+  // Syn cloud firestore with DataItem
   Future<void> downSync() async {
     DocumentSnapshot<Map<String, dynamic>> value =
         await FirebaseFirestore.instance.collection(parent).doc(id).get();

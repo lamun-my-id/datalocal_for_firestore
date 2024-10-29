@@ -3,6 +3,7 @@ import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.
 import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
 
 extension ListDataItemRow on List<DataItemRow> {
+  /// Sorting data for DataItemRow
   List<DataItemRow> sortData(List<DataSort> parameters) {
     if (parameters.isNotEmpty) {
       List<List<DataItemRow>> temp = [this];

@@ -4,7 +4,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:datalocal/datalocal.dart';
 import 'package:datalocal/datalocal_extension.dart';
 import 'package:datalocal/utils/encrypt.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
@@ -111,6 +110,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// Initialize DataLocal get last state
   Future<void> _initialize() async {
     try {
       _name = EncryptUtil().encript(
@@ -189,6 +189,7 @@ class DataLocalForFirestore extends DataLocal {
   StreamSubscription? _periodicStream;
   Stream? _periodic;
 
+  /// async DataLocal get data periodic
   Future<void> _async() async {
     try {
       _periodic = Stream.periodic(_refreshDuration, (_) async {
@@ -205,6 +206,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// async DataLocal get data periodic newest data
   _getNews() async {
     try {
       List<DataFilter>? filterUpdate = [];
@@ -238,7 +240,7 @@ class DataLocalForFirestore extends DataLocal {
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
-              "data": doc.data(),
+              "data": jsonDecode(doc.data()!.toJson()),
               "name": stateName,
               "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
@@ -266,6 +268,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// async DataLocal get data periodic newest updated data
   _getUpdates() async {
     try {
       List<DataFilter>? filterUpdate = [];
@@ -301,7 +304,7 @@ class DataLocalForFirestore extends DataLocal {
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
-              "data": doc.data(),
+              "data": jsonDecode(doc.data()!.toJson()),
               "name": stateName,
               "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
@@ -331,6 +334,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// stream DataLocal get data
   Future<void> _stream() async {
     // print("Stream started");
     try {
@@ -348,6 +352,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// stream DataLocal get data newest data
   Future<void> _streamNews() async {
     try {
       List<DataFilter>? filterUpdate = [];
@@ -381,7 +386,9 @@ class DataLocalForFirestore extends DataLocal {
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
-              "data": doc.data(),
+              "data": jsonDecode(doc.data()!.toJson()),
+              //               "data": jsonDecode(doc.data()!.toJson()),
+
               "name": stateName,
               "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
@@ -411,6 +418,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// stream DataLocal get data newest updated data
   Future<void> _streamUpdates() async {
     try {
       List<DataFilter>? filterUpdate = [];
@@ -446,7 +454,7 @@ class DataLocalForFirestore extends DataLocal {
           for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
             DataItem element = DataItem.fromMap({
               "id": doc.id,
-              "data": doc.data(),
+              "data": jsonDecode(doc.data()!.toJson()),
               "name": stateName,
               "parent": collectionPath,
               "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
@@ -478,6 +486,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// refresh state
   @override
   refresh() {
     if (onRefresh != null) {
@@ -488,6 +497,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// presync data to laod limited data
   Future<void> _presync() async {
     // print("presync counter");
     await _syncCounter();
@@ -511,7 +521,7 @@ class DataLocalForFirestore extends DataLocal {
       for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
         DataItem element = DataItem.fromMap({
           "id": doc.id,
-          "data": doc.data(),
+          "data": jsonDecode(doc.data()!.toJson()),
           "name": stateName,
           "parent": collectionPath,
           "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
@@ -534,6 +544,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// sync data to laod
   Future<void> _sync() async {
     // print("start sync");
     int ac = _container.params['actualCount'];
@@ -565,7 +576,7 @@ class DataLocalForFirestore extends DataLocal {
         for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
           DataItem element = DataItem.fromMap({
             "id": doc.id,
-            "data": doc.data(),
+            "data": jsonDecode(doc.data()!.toJson()),
             "name": stateName,
             "parent": collectionPath,
             "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
@@ -591,6 +602,7 @@ class DataLocalForFirestore extends DataLocal {
     // print("end sync");
   }
 
+  /// sync count of data to laod
   Future<void> _syncCounter() async {
     int ac = await await DataCompute().isolate((_) async {
       AggregateQuery query = _[0];
@@ -606,6 +618,7 @@ class DataLocalForFirestore extends DataLocal {
     _syncContainer();
   }
 
+  /// sync container data
   Future<void> _syncContainer() async {
     _container.ids = _container.ids.toSet().toList();
     _count = _container.ids.length;
@@ -710,6 +723,7 @@ class DataLocalForFirestore extends DataLocal {
     }
   }
 
+  /// destroy running datalocal
   @override
   void dispose() async {
     _newStream?.cancel();
@@ -717,6 +731,7 @@ class DataLocalForFirestore extends DataLocal {
     _periodicStream?.cancel();
   }
 
+  /// insert many data
   @override
   Future<void> insertMany(List<Map<String, dynamic>> values) async {
     for (Map<String, dynamic> value in values) {
@@ -798,6 +813,7 @@ class DataLocalForFirestore extends DataLocal {
     await _saveState();
   }
 
+  /// remove many data
   @override
   Future<void> removeMany(List<String> ids) async {
     try {
@@ -825,6 +841,7 @@ class DataLocalForFirestore extends DataLocal {
     await _saveState();
   }
 
+  /// savestate data to load other time
   Future<void> _saveState() async {
     _isLoading = true;
     refresh();
@@ -862,6 +879,7 @@ class DataLocalForFirestore extends DataLocal {
     refresh();
   }
 
+  /// reset datalocal
   Future<void> reset() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     // print(_container.ids.length);
@@ -879,5 +897,29 @@ class DataLocalForFirestore extends DataLocal {
     _isInit = false;
     refresh();
     await _initialize();
+  }
+}
+
+extension MapStringDynamic on Map<String, dynamic> {
+  /// fix data type to save in datalocal
+  String toJson() {
+    return jsonEncode(
+      this,
+      toEncodable: (_) {
+        if (_ is DateTime) {
+          return DateTimeUtils.toDateTime(_).toString();
+        } else if (_ is Timestamp) {
+          return DateTime.fromMillisecondsSinceEpoch(_.millisecondsSinceEpoch)
+              .toString();
+        } else if (_ is GeoPoint) {
+          return jsonEncode({
+            "latitude": _.latitude,
+            "longitude": _.longitude,
+          });
+        } else {
+          return "";
+        }
+      },
+    );
   }
 }

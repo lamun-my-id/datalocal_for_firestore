@@ -1,8 +1,9 @@
 // ignore_for_file: no_wildcard_variable_uses
 
-import 'package:datalocal/datalocal_extension.dart';
 import 'package:datalocal/datalocal_query_extension.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
+import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
+// import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.dart';
 import 'package:datalocal_for_firestore/src/extensions/list_data_item_row.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:collection/collection.dart';
@@ -33,9 +34,10 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
             throw "Please fill key with String or DataKey value";
           }).toList() ??
           [];
-      dynamic groupQueries = [
+      List<dynamic> groupQueries = [
         ...selects.whereType<QueryGroup>(),
-        ...(groups ?? []).whereType<String>()
+        ...(groups ?? []).whereType<String>(),
+        ...(groups ?? []).whereType<DataSelectDate>(),
       ];
       List<dynamic> normQueries = selects
           .where((_) => _ is String || _ is DataKey || _ is DataSelectDate)
@@ -46,11 +48,12 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
           return _;
         }
       }).toList();
+      // print("dataGroup.length");
       List<List<DataItem>> dataGroup =
-          // (groups ?? []).isEmpty && groupQueries.isNotEmpty
-          //     ? [query.data]
-          //     :
-          query.data.groupData(k);
+          (groups ?? []).isEmpty && groupQueries.isNotEmpty
+              ? [query.data]
+              : query.data.groupData(k);
+      // print(dataGroup.length);
       List<DataItemRow> result = [];
       for (List<DataItem> dg in dataGroup) {
         if (groupQueries.isNotEmpty) {
@@ -77,6 +80,8 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
                 } catch (e) {
                   temp[gQ.as ?? 'averageOf${gQ.key}'] = item.get(gQ.key) ?? 0;
                 }
+              } else if (gQ is DataSelectDate) {
+                temp[gQ.as ?? "dateFormatOf${gQ.key}"] = item.get(gQ);
               } else {
                 temp[gQ] = item.get(gQ);
               }
@@ -115,7 +120,7 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
       }
       return result;
     }, args: [query, selects, filters, sorts, groups]);
-    if (limit != null) {
+    if (limit != null && result.length > limit) {
       result = result.slices(limit).toList().first;
     }
     return result;
@@ -126,6 +131,7 @@ class DataItemRow {
   late Map<String, dynamic> _data;
   Map<String, dynamic> get data => _data;
 
+  /// for local save query result
   static _fromMap(Map<String, dynamic> value) {
     DataItemRow row = DataItemRow();
     row._data = value;
