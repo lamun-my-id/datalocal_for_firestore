@@ -1,9 +1,10 @@
 // ignore_for_file: no_wildcard_variable_uses
 
-import 'package:datalocal/datalocal_query_extension.dart';
+// import 'package:datalocal/datalocal_query_extension.dart';
+// import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
-// import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.dart';
+import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.dart';
 import 'package:datalocal_for_firestore/src/extensions/list_data_item_row.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:collection/collection.dart';
@@ -102,7 +103,7 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
               }
             }
           }
-          result.add(DataItemRow._fromMap(temp));
+          result.add(DataItemRow.fromMap(temp));
           if (sorts != null) {
             result = result.sortData(sorts);
           }
@@ -113,7 +114,7 @@ extension DataLocalExtensionQuery on DataLocalForFirestore {
               for (DataKey nm in normQueries) {
                 temp[nm.key] = item.get(nm);
               }
-              result.add(DataItemRow._fromMap(temp));
+              result.add(DataItemRow.fromMap(temp));
             }
           }
         }
@@ -132,7 +133,7 @@ class DataItemRow {
   Map<String, dynamic> get data => _data;
 
   /// for local save query result
-  static _fromMap(Map<String, dynamic> value) {
+  static fromMap(Map<String, dynamic> value) {
     DataItemRow row = DataItemRow();
     row._data = value;
     return row;
