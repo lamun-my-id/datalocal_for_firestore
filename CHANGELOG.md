@@ -1,3 +1,7 @@
+## 1.0.38
+* Fix Select Date Data 
+* fix norm data and group data
+
 ## 1.0.37
 * Add execute for extension List<DataItem>
 * fix group data 

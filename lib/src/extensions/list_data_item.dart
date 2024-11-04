@@ -3,7 +3,7 @@
 import 'package:collection/collection.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_extension.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore_query_extension.dart';
-import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
+// import 'package:datalocal_for_firestore/src/extensions/data_item.dart';
 import 'package:datalocal_for_firestore/src/extensions/list.dart';
 import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:datalocal_for_firestore/src/extensions/list_data_item_row.dart';
@@ -320,6 +320,8 @@ extension ListDataItem on List<DataItem> {
     int? limit,
   }) async {
     if (limit != null) assert(limit > 0, "Limit harus diatas 0");
+    List<DataItem> items = this;
+    if (filters != null) items = filterData(filters);
     List<DataItemRow> result = await DataCompute().isolate((_) async {
       await initializeDateFormatting();
       List<DataItem> items = _[0];
@@ -408,10 +410,11 @@ extension ListDataItem on List<DataItem> {
           }
         } else {
           if (normQueries.isNotEmpty) {
+            // print(dg.length);
             for (DataItem item in dg) {
               Map<String, dynamic> temp = {};
-              for (DataKey nm in normQueries) {
-                temp[nm.key] = item.get(nm);
+              for (dynamic nm in normQueries) {
+                temp[nm.as ?? nm.key] = item.get(nm);
               }
               result.add(DataItemRow.fromMap(temp));
             }
@@ -419,7 +422,7 @@ extension ListDataItem on List<DataItem> {
         }
       }
       return result;
-    }, args: [this, selects, filters, sorts, groups]);
+    }, args: [items, selects, filters, sorts, groups]);
     if (limit != null && result.length > limit) {
       result = result.slices(limit).toList().first;
     }
