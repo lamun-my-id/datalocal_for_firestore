@@ -333,6 +333,7 @@ extension ListDataItem on List<DataItem> {
             if (key is String) return DataKey(key);
             if (key is DataKey) return key;
             if (key is DataSelectDate) return key;
+            if (key is QueryDistinct) return DataKey(key.key, as: key.as);
             throw "Please fill key with String or DataKey value";
           }).toList() ??
           [];
@@ -381,6 +382,12 @@ extension ListDataItem on List<DataItem> {
                   temp[gQ.as ?? 'averageOf${gQ.key}'] += item.get(gQ.key) ?? 0;
                 } catch (e) {
                   temp[gQ.as ?? 'averageOf${gQ.key}'] = item.get(gQ.key) ?? 0;
+                }
+              } else if (gQ is QueryDistinct) {
+                try {
+                  temp[gQ.as ?? 'distinctOf${gQ.key}'] = item.get(gQ.key);
+                } catch (e) {
+                  temp[gQ.as ?? 'distinctOf${gQ.key}'] = item.get(gQ.key) ?? 0;
                 }
               } else if (gQ is DataSelectDate) {
                 temp[gQ.as ?? "dateFormatOf${gQ.key}"] = item.get(gQ);

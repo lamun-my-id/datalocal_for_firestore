@@ -1,3 +1,9 @@
+## 1.0.40
+* Fix Select Date Data in Filter Data
+
+## 1.0.39
+* Fix Select Date Data in Group Data
+
 ## 1.0.38
 * Fix Select Date Data 
 * fix norm data and group data
