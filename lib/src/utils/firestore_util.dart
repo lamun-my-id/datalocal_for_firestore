@@ -22,7 +22,7 @@ class FirestoreUtil {
           // log(getVariable(query.filters![i]));
           DataFilter f = filters[i];
           q = q.where(
-            f.key.key,
+            (f.key as DataKey).key,
             isEqualTo: f.isEqualTo,
             isNotEqualTo: f.isNotEqualTo,
             isGreaterThan: f.isGreaterThan,

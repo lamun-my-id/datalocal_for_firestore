@@ -1,3 +1,9 @@
+## 1.0.42
+* Fix saved DataFile
+
+## 1.0.41
+* Fix Select Date Data in Filter Data
+
 ## 1.0.40
 * Fix Select Date Data in Filter Data
 

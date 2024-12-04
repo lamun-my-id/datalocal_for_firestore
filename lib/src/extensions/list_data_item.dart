@@ -75,6 +75,7 @@ extension ListDataItem on List<DataItem> {
     for (int index = 0; index < result.length; index++) {
       DataItem d = result[index];
       for (DataFilter f in parameters) {
+        // print((d.get(f.key)));
         try {
           if (f.isEqualTo != null) {
             if ((d.get(f.key)) == null) throw "data null";

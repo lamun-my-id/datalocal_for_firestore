@@ -212,9 +212,9 @@ class DataLocalForFirestore extends DataLocal {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key.key != "updatedAt" &&
-              filter.key.key != "createdAt" &&
-              filter.key.key != 'deletedAt') {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
@@ -274,9 +274,9 @@ class DataLocalForFirestore extends DataLocal {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key.key != "updatedAt" &&
-              filter.key.key != "createdAt" &&
-              filter.key.key != 'deletedAt') {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
@@ -358,9 +358,9 @@ class DataLocalForFirestore extends DataLocal {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key.key != "updatedAt" &&
-              filter.key.key != "createdAt" &&
-              filter.key.key != 'deletedAt') {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
@@ -424,9 +424,9 @@ class DataLocalForFirestore extends DataLocal {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key.key != "updatedAt" &&
-              filter.key.key != "createdAt" &&
-              filter.key.key != 'deletedAt') {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
