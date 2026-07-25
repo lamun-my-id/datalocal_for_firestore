@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 class FirestoreUtil {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// Query Builder Firebase Firestore
   Query<Map<String, dynamic>> queryBuilder(
-    collectionPath, {
+    String collectionPath, {
     List<DataFilter>? filters,
     List<DataSort>? sorts,
     DocumentSnapshot? startAfterDocument,
@@ -20,69 +21,42 @@ class FirestoreUtil {
         for (int i = 0; i < filters.length; i++) {
           // log(getVariable(query.filters![i]));
           DataFilter f = filters[i];
-          switch (f.operator) {
-            case DataFilterOperator.isEqualTo:
-              q = q.where(f.key, isEqualTo: f.value);
-              break;
-            case DataFilterOperator.isNotEqualTo:
-              q = q.where(f.key, isNotEqualTo: f.value);
-              break;
-            case DataFilterOperator.isGreaterThanOrEqualTo:
-              q = q.where(f.key, isGreaterThanOrEqualTo: f.value);
-              break;
-            case DataFilterOperator.isGreaterThan:
-              q = q.where(f.key, isGreaterThan: f.value);
-              break;
-            case DataFilterOperator.isLessThanOrEqualTo:
-              q = q.where(f.key, isLessThanOrEqualTo: f.value);
-              break;
-            case DataFilterOperator.isLessThan:
-              q = q.where(f.key, isLessThan: f.value);
-              break;
-            case DataFilterOperator.whereIn:
-              q = q.where(f.key, whereIn: f.value);
-              break;
-            case DataFilterOperator.whereNotIn:
-              q = q.where(f.key, whereNotIn: f.value);
-              break;
-            case DataFilterOperator.arrayContains:
-              q = q.where(f.key, arrayContains: f.value);
-              break;
-            case DataFilterOperator.arrayContainsAny:
-              q = q.where(f.key, arrayContainsAny: f.value);
-              break;
-            case DataFilterOperator.isNull:
-              q = q.where(f.key, isNull: f.value);
-              break;
-            default:
-              q = q.where(f.key, isEqualTo: f.value);
-              break;
-          }
+          q = q.where(
+            (f.key as DataKey).key,
+            isEqualTo: f.isEqualTo,
+            isNotEqualTo: f.isNotEqualTo,
+            isGreaterThan: f.isGreaterThan,
+            isGreaterThanOrEqualTo: f.isGreaterThanOrEqualTo,
+            isLessThan: f.isLessThan,
+            isLessThanOrEqualTo: f.isLessThanOrEqualTo,
+            isNull: f.isNull,
+            whereIn: f.whereIn,
+            whereNotIn: f.whereNotIn,
+            arrayContains: f.arrayContains,
+            arrayContainsAny: f.arrayContainsAny,
+          );
         }
       }
 
       if (sorts != null && sorts.isNotEmpty) {
         for (DataSort sort in sorts) {
-          q = q.orderBy(
-            sort.key,
-            descending: sort.desc == true,
-          );
-        }
-        if (startAfterDocument != null) {
-          q = q.startAfterDocument(startAfterDocument);
-        } else {
-          // debugPrint('tidak ada start after');
-        }
-        if (endBeforeDocument != null) {
-          q = q.endBeforeDocument(endBeforeDocument);
-        } else {
-          // debugPrint('tidak ada end before');
+          q = q.orderBy(sort.key.key, descending: sort.desc == true);
         }
       }
+      if (startAfterDocument != null) {
+        q = q.startAfterDocument(startAfterDocument);
+      } else {
+        // debugPrint('tidak ada start after');
+      }
+      if (endBeforeDocument != null) {
+        q = q.endBeforeDocument(endBeforeDocument);
+      } else {
+        // debugPrint('tidak ada end before');
+      }
+      if (limit != null) {
+        q = q.limit(limit);
+      }
       if (isCount == false) {
-        if (limit != null) {
-          q = q.limit(limit);
-        }
         // if (paginations != null) {
         //   q = q.limit(query.paginations!['size']);
         // }
@@ -96,6 +70,7 @@ class FirestoreUtil {
     }
   }
 
+  /// Data Insert Firebase Firestore
   Future<String> insert(
     String collectionPath, {
     required Map<String, dynamic> value,
@@ -107,30 +82,39 @@ class FirestoreUtil {
     }
     data['updatedAt'] = null;
 
-    DocumentReference<Map<String, dynamic>> ref =
-        await _firestore.collection(collectionPath).add(data);
+    DocumentReference<Map<String, dynamic>> ref = await _firestore
+        .collection(collectionPath)
+        .add(data);
     return ref.id;
   }
 
+  /// Data get Firebase Firestore
   Future<DocumentSnapshot<Map<String, dynamic>>> get(
     String collectionPath, {
     required String id,
   }) async {
-    DocumentSnapshot<Map<String, dynamic>> ref =
-        await _firestore.collection(collectionPath).doc(id).get();
+    DocumentSnapshot<Map<String, dynamic>> ref = await _firestore
+        .collection(collectionPath)
+        .doc(id)
+        .get();
     return ref;
   }
 
+  /// Data Insert and get Firebase Firestore
   Future<DocumentSnapshot<Map<String, dynamic>>> insertAndGet({
     required String collectionPath,
     required Map<String, dynamic> value,
     bool createdAt = true,
   }) async {
-    String id =
-        await insert(collectionPath, value: value, createdAt: createdAt);
+    String id = await insert(
+      collectionPath,
+      value: value,
+      createdAt: createdAt,
+    );
     return await get(collectionPath, id: id);
   }
 
+  /// Data Update Firebase Firestore
   Future<void> update(
     String collectionPath, {
     required String id,
@@ -145,6 +129,7 @@ class FirestoreUtil {
     await _firestore.collection(collectionPath).doc(id).update(data);
   }
 
+  /// Data Update and Get Firebase Firestore
   Future<DocumentSnapshot<Map<String, dynamic>>> updateAndGet(
     String collectionPath, {
     required String id,
@@ -159,10 +144,8 @@ class FirestoreUtil {
     return await get(collectionPath, id: id);
   }
 
-  Future<void> delete(
-    String collectionPath, {
-    required String id,
-  }) async {
+  /// Data Delete Firebase Firestore
+  Future<void> delete(String collectionPath, {required String id}) async {
     await _firestore.collection(collectionPath).doc(id).delete();
   }
 }

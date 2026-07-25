@@ -1,160 +1,182 @@
+// ignore_for_file: no_wildcard_variable_uses, prefer_initializing_formals
+
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:datalocal/datalocal.dart';
-import 'package:datalocal/utils/date_time.dart';
+import 'package:datalocal/datalocal_extension.dart';
 import 'package:datalocal/utils/encrypt.dart';
-import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
+import 'package:datalocal_for_firestore/datalocal_for_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:datalocal_for_firestore/src/utils/date_time_util.dart';
+import 'package:datalocal_for_firestore/src/utils/firestore_util.dart';
 
-class DataLocalForFirestore {
-  final String _stateName;
-  String get stateName => _stateName;
+// Plugin package to store data locally with storage techniques using the "shared preferences" plugin,
+// this plugin already supports Android, iOS, Web, Windows, MacOS, and Linux.
+// Data storage and data retrieval use isolates, so it can maximize the performance of flutter.
+class DataLocalForFirestore extends DataLocal {
+  String collectionPath;
 
-  final String _collectionPath;
-  String get collectionPath => _collectionPath;
-
-  List<DataFilter>? _filters;
-  List<DataSort>? _sorts;
-  Function()? onRefresh;
-  final bool _debugMode;
-
+  // [stateName] is like key collection to save datas, or like something like table name in SQL.
+  // [onRefresh] used when new data available and some change in data
+  // [debugMode] developer used to see log data
   DataLocalForFirestore(
-    String stateName, {
-    required String collectionPath,
-    // this.filters,
-    // this.sorts,
-    this.onRefresh,
-    bool debugMode = false,
-  })  : _collectionPath = collectionPath,
-        _debugMode = debugMode,
-        _stateName = stateName;
+    super.stateName, {
+    super.onRefresh,
+    super.debugMode,
+    required this.collectionPath,
+  }) : _debugMode = debugMode;
 
   // Static Func
-  /// Used for the first time initialize [DataLocalForFirestore]
-  static Future<DataLocalForFirestore> stream(
+  /// Used for the first time initialize with data get per duration [DataLocalForFirestore]
+  static Future<DataLocalForFirestore> periodic(
     String stateName, {
-    required String collectionPath,
-    List<DataFilter> filters = const [],
-    List<DataSort> sorts = const [],
     Function()? onRefresh,
     bool? debugMode,
+    required String collectionPath,
+    Duration refreshDuration = const Duration(seconds: 10),
+    List<DataSort>? sorts,
+    List<DataFilter>? filters,
+    int size = 100,
   }) async {
     DataLocalForFirestore result = DataLocalForFirestore(
       stateName,
-      collectionPath: collectionPath,
-      // filters: filters,
-      // sorts: sorts,
       onRefresh: onRefresh,
       debugMode: debugMode ?? false,
+      collectionPath: collectionPath,
     );
-    result._filters = filters;
     result._sorts = sorts;
-    await result._startStream();
+    result._filters = filters;
+    result._size = size;
+    result._isStream = false;
+    result._refreshDuration = refreshDuration;
+    await result._initialize();
     return result;
   }
 
-  // Local Variable
-  bool _isInit = false;
-  bool get isInit => _isInit;
+  /// Used for the first time initialize with data stream [DataLocalForFirestore]
+  static Future<DataLocalForFirestore> stream(
+    String stateName, {
+    Function()? onRefresh,
+    bool? debugMode,
+    required String collectionPath,
+    List<DataSort>? sorts,
+    List<DataFilter>? filters,
+    int size = 100,
+  }) async {
+    DataLocalForFirestore result = DataLocalForFirestore(
+      stateName,
+      onRefresh: onRefresh,
+      debugMode: debugMode ?? false,
+      collectionPath: collectionPath,
+    );
+    result._sorts = sorts;
+    result._filters = filters;
+    result._size = size;
+    result._isStream = true;
+    await result._initialize();
+    return result;
+  }
+
+  List<DataSort>? _sorts;
+  List<DataFilter>? _filters;
+
+  late String _name;
+
+  late bool _isStream;
+  late Duration _refreshDuration;
+
+  late int _size;
+
+  final bool _debugMode;
+  late DataContainer _container;
+  // DataContainer get container => _container;
 
   bool _isLoading = false;
+  @override
   bool get isLoading => _isLoading;
 
+  bool _isInit = false;
+  @override
+  bool get isInit => _isInit;
+
   int _count = 0;
+  @override
   int get count => _count;
 
-  List<DataItem> _data = [];
-  List<DataItem> get data => _data;
-  late DateTime _lastNewestCheck;
-  late DateTime _lastUpdateCheck;
+  final Map<String, DataItem> _raw = {};
+  // Map<String, DataItem> get raw => _raw;
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newStream;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _updateStream;
-
-  // Local Variable Private
-  late String _name;
-  final int _size = 200;
-
-  /// Log DataLocalForFirestore used on debugMode
-  _log(dynamic arg) async {
+  /// Log DataLocal used on debugMode
+  Future<void> _log(dynamic arg) async {
     if (_debugMode) {
-      debugPrint('DataLocalForFirestore (Debug): ${arg.toString()}');
+      debugPrint('DataLocal (Debug): ${arg.toString()}');
     }
   }
 
-  // Function
-  /// Used to initialize DataLocalForFirestore
-  _startStream() async {
-    // ================================
+  /// Initialize DataLocal get last state
+  Future<void> _initialize() async {
     try {
-      try {
-        initializeDateFormatting();
-      } catch (e) {
-        //
-      }
-      _name = EncryptUtil().encript(
-        "DataLocalForFirestore-$stateName",
-      );
+      _name = EncryptUtil().encript("DataLocalForFirestore-$stateName");
+      bool firstTime = true;
       try {
         String? res;
         try {
           final SharedPreferences prefs = await SharedPreferences.getInstance();
-          res = (prefs.getString(EncryptUtil().encript("$_name-0")));
+          res = (prefs.getString(EncryptUtil().encript(_name)));
         } catch (e) {
           _log("error get res");
         }
 
         if (res == null) {
-          _data = [];
-          throw "tidak ada state (${EncryptUtil().encript("$_name-0")})";
+          _container = DataContainer(name: _name, seq: 0, ids: []);
+          throw "tidak ada state";
+        } else {
+          firstTime = false;
+          _container = DataContainer.fromMap(
+            jsonDecode(EncryptUtil().decript(res)),
+          );
         }
-        try {
-          if (kIsWeb) {
-            Map<String, dynamic> value = _jsonToListDataItem([null, res]);
-            data.addAll(value['data']);
-            _count = data.length;
-          } else {
-            ReceivePort rPort = ReceivePort();
-            await Isolate.spawn(_jsonToListDataItem, [rPort.sendPort, res]);
-            Map<String, dynamic> value = await rPort.first;
-            data.addAll(value['data']);
-            //
-            // _lastNewestCheck = value['lastNewestCheck'];
-            // _lastUpdateCheck = value['lastUpdateCheck'];
-            // _count = value['count'];
-            //
-            _count = data.length;
-            rPort.close();
-          }
-          _isInit = true;
-          refresh();
-        } catch (e) {
-          _log("initialize error(3) : $e");
-          //
-        }
-        _count = data.length;
-        if (count == 0 || count == _size) {
-          _log("arg");
-          _loadState().then((value) async {
-            if (count == data.length || count == 0) {
-              await _sync();
-            }
-            await _stream();
-          });
+
+        if (_container.ids.isNotEmpty) {
+          await _loadState();
         }
       } catch (e) {
         _log("initialize error(2)#$stateName : $e");
-        if (count == data.length || count == 0) {
-          await _sync();
-        }
-        await _stream();
       }
       _isInit = true;
+      refresh();
+      // print("========================${_container.ids.length}");
+      if (firstTime || _container.ids.isEmpty) {
+        // print(
+        //     'pertama kali atau actualCount tidak sesuai, ${_container.ids.length}');
+        await _presync();
+      } else {
+        if ((_container.params['actualCount'] ?? 0) != _container.ids.length) {
+          await _syncCounter();
+        }
+        // print('bukan pertama kalo skip synckon, ${_container.ids.length}');
+      }
+      // print("object state berhasil di load ============");
+      if ((_container.params['actualCount'] ?? 0) != _container.ids.length) {
+        _sync().then((_) async {
+          // print('=======sync berhasil');
+          await _saveState();
+          // print('=======save');
+          if (_isStream) {
+            _stream();
+          } else {
+            _async();
+          }
+        });
+      } else {
+        if (_isStream) {
+          _stream();
+        } else {
+          _async();
+        }
+      }
       refresh();
     } catch (e) {
       _log("initialize error(1) : $e");
@@ -162,291 +184,314 @@ class DataLocalForFirestore {
     }
   }
 
-  Future<void> _streamNew() async {
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newStream;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _updateStream;
+  StreamSubscription? _periodicStream;
+  Stream? _periodic;
+
+  /// async DataLocal get data periodic
+  Future<void> _async() async {
+    try {
+      _periodic = Stream.periodic(_refreshDuration, (index) async {
+        await _getNews();
+        await _getUpdates();
+        return index;
+      });
+
+      _periodicStream = _periodic?.listen((e) {
+        // print(e);
+      });
+    } catch (e) {
+      //
+    }
+  }
+
+  /// async DataLocal get data periodic newest data
+  Future<void> _getNews() async {
     try {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key != "updatedAt" &&
-              filter.key != "createdAt" &&
-              filter.key != 'deletedAt') {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
       }
-      filterUpdate.add(DataFilter(
-        key: "createdAt",
-        value: _lastNewestCheck,
-        operator: DataFilterOperator.isGreaterThanOrEqualTo,
-      ));
-      _newStream = FirestoreUtil()
+      filterUpdate.add(
+        DataFilter("createdAt", isGreaterThan: _container.lastDataCreatedAt),
+      );
+      FirestoreUtil()
           .queryBuilder(
-            _collectionPath,
-            sorts: [
-              DataSort(
-                key: "createdAt",
-                desc: true,
-              ),
-            ],
+            collectionPath,
+            sorts: [DataSort("createdAt", desc: true)],
             filters: filterUpdate,
           )
-          .snapshots()
-          .listen((event) async {
-        if (event.docs.isNotEmpty) {
-          for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
-            DataItem element =
-                DataItem.fromMap({"id": doc.id, "data": doc.data()});
-            try {
-              // await Future.delayed(const Duration(seconds: 2));
-              if (kIsWeb) {
-                _data = _listDataItemAddUpdate([null, data, element])['data'];
-              } else {
-                ReceivePort rPort = ReceivePort();
-                await Isolate.spawn(
-                    _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-                _data = Map<String, dynamic>.from(await rPort.first)['data'];
-                rPort.close();
+          .get()
+          .then((event) async {
+            if (event.docs.isNotEmpty) {
+              for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
+                DataItem element = DataItem.fromMap({
+                  "id": doc.id,
+                  "data": jsonDecode(doc.data()!.toJson()),
+                  "name": stateName,
+                  "parent": collectionPath,
+                  "createdAt": DateTimeUtils.toDateTime(
+                    doc.data()!['createdAt'],
+                  ),
+                  "updatedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['updatedAt'],
+                  ),
+                  "deletedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['deletedAt'],
+                  ),
+                });
+                try {
+                  _raw[doc.id] = element;
+                  _container.ids.add(element.path());
+                  await _raw[doc.id]!.save({});
+                } catch (e) {
+                  _log("newStream error(1) : $e");
+                }
               }
-            } catch (e) {
-              _log("newStream error(1) : $e");
+              _container.lastDataCreatedAt = DateTimeUtils.toDateTime(
+                event.docs.first['createdAt'],
+              );
+              _syncCounter();
+              _log("new Stream available, ${_container.lastDataCreatedAt}");
+            } else {
+              _log("new Stream unavailable, ${_container.lastDataCreatedAt}");
             }
-          }
-          _data = await find(sorts: _sorts);
-          refresh();
-          _log("ada data baru menyimpan state");
-          _lastNewestCheck = DateTime.now();
-          await _saveState();
-          _count = data.length;
-          _newStream?.cancel();
-          _streamNew();
-        } else {}
-      });
+          });
     } catch (e) {
       _log("newStream error(2) : $e");
     }
   }
 
-  Future<void> _streamUpdate() async {
+  /// async DataLocal get data periodic newest updated data
+  Future<void> _getUpdates() async {
     try {
       List<DataFilter>? filterUpdate = [];
       if (_filters != null) {
         for (DataFilter filter in _filters!) {
-          if (filter.key != "updatedAt" &&
-              filter.key != "createdAt" &&
-              filter.key != 'deletedAt') {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
             filterUpdate.add(filter);
           }
         }
       }
-      filterUpdate.add(DataFilter(
-        key: "updatedAt",
-        value: _lastUpdateCheck,
-        operator: DataFilterOperator.isGreaterThanOrEqualTo,
-      ));
-      // _log('start stream $dbName');
-      _updateStream = FirestoreUtil()
+      filterUpdate.add(
+        DataFilter("updatedAt", isGreaterThan: _container.lastDataUpdatedAt),
+      );
+      // _log('start stream $collectionPath');
+      FirestoreUtil()
           .queryBuilder(
-            _collectionPath,
-            sorts: [
-              DataSort(
-                key: "updatedAt",
-                desc: true,
-              ),
-            ],
+            collectionPath,
+            sorts: [DataSort("updatedAt", desc: true)],
             filters: filterUpdate,
           )
-          .snapshots()
-          .listen((event) async {
-        // _log('listen stream $dbName');
-        if (event.docs.isNotEmpty) {
-          // _log('update available $dbName');
-          for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
-            DataItem element =
-                DataItem.fromMap({"id": doc.id, "data": doc.data()});
-
-            try {
-              // await Future.delayed(const Duration(seconds: 2));
-              if (kIsWeb) {
-                _data = _listDataItemAddUpdate([null, data, element])['data'];
-              } else {
-                ReceivePort rPort = ReceivePort();
-                await Isolate.spawn(
-                    _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-                _data = Map<String, dynamic>.from(await rPort.first)['data'];
-                rPort.close();
+          .get()
+          .then((event) async {
+            // _log('listen stream $collectionPath');
+            if (event.docs.isNotEmpty) {
+              for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
+                DataItem element = DataItem.fromMap({
+                  "id": doc.id,
+                  "data": jsonDecode(doc.data()!.toJson()),
+                  "name": stateName,
+                  "parent": collectionPath,
+                  "createdAt": DateTimeUtils.toDateTime(
+                    doc.data()!['createdAt'],
+                  ),
+                  "updatedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['updatedAt'],
+                  ),
+                  "deletedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['deletedAt'],
+                  ),
+                });
+                try {
+                  _raw[doc.id] = element;
+                  await _raw[doc.id]!.save({});
+                } catch (e) {
+                  _log("newStream error(1) : $e");
+                  //
+                }
               }
-            } catch (e) {
-              _log("updateStream error(1) : $e");
+              _count = _container.ids.length;
+              _container.lastDataUpdatedAt = DateTimeUtils.toDateTime(
+                event.docs.first['updatedAt'],
+              );
+              _syncCounter();
+              _log('update available, ${_container.lastDataUpdatedAt}');
+              refresh();
+            } else {
+              _log('update unavailable, ${_container.lastDataUpdatedAt}');
             }
-          }
-          _data = await find(sorts: _sorts);
-          refresh();
-          _lastUpdateCheck = DateTime.now();
-          _log("ada data update baru menyimpan state");
-          await _saveState();
-          _updateStream?.cancel();
-          _streamUpdate();
-        } else {
-          // _log('update unavailable $dbName');
-        }
-      });
+          });
     } catch (e) {
       _log("updateStream error(2) : $e");
     }
   }
 
+  /// stream DataLocal get data
   Future<void> _stream() async {
+    // print("Stream started");
     try {
-      if (count > 1) {
-        if (DateTimeUtils.toDateTime(data.first.data['createdAt'])!
-            .isAfter(DateTimeUtils.toDateTime(data.last.data['createdAt'])!)) {
-          _lastNewestCheck =
-              DateTimeUtils.toDateTime(data.first.data['createdAt'])!;
-        } else {
-          _lastNewestCheck =
-              DateTimeUtils.toDateTime(data.last.data['createdAt'])!;
-        }
-      } else {
-        _lastNewestCheck = DateTime(2019);
-      }
-
-      _streamNew();
+      _streamNews();
     } catch (e) {
+      // print(e);
       //
     }
 
     try {
-      if (count > 1) {
-        if (DateTimeUtils.toDateTime(
-                data.first.get('updatedAt') ?? data.first.get('createdAt'))!
-            .isAfter(DateTimeUtils.toDateTime(
-                data.last.get('updatedAt') ?? data.last.get('createdAt'))!)) {
-          _lastUpdateCheck = DateTimeUtils.toDateTime(
-              data.first.get('updatedAt') ?? data.first.get('createdAt'))!;
-        } else {
-          _lastUpdateCheck = DateTimeUtils.toDateTime(
-              data.last.get('updatedAt') ?? data.last.get('createdAt'))!;
-        }
-      } else {
-        _lastUpdateCheck = DateTime.now();
-      }
-      _streamUpdate();
+      _streamUpdates();
     } catch (e) {
-      //
+      // print(e);
+      // _log("error update");
     }
   }
 
-  /// Used to save state data to shared preferences
-  Future<void> _saveState() async {
-    _isLoading = true;
-    refresh();
-    int loop = (count / _size).ceil();
-    _log('state akan dibuat ${loop + 1} ($count/$_size)');
-    for (int i = 0; i < loop + 1; i++) {
-      _log("start savestate number : ${i + 1}");
-      SharedPreferences prefs;
-      try {
-        prefs = await SharedPreferences.getInstance();
-        try {
-          if (kIsWeb) {
-            String res = _listDataItemToJson(
-                [null, data.skip(i * _size).take(_size).toList()]);
-            // _log((await rPort.first as String).length);
-            prefs.setString(EncryptUtil().encript("$_name-$i"), res);
-          } else {
-            ReceivePort rPort = ReceivePort();
-            _log("Isolate spawn");
-            await Isolate.spawn(_listDataItemToJson,
-                [rPort.sendPort, data.skip(i * _size).take(_size).toList()]);
-            // _log((await rPort.first as String).length);
-            String value = await rPort.first as String;
-            prefs.setString(EncryptUtil().encript("$_name-$i"), value);
-            rPort.close();
+  /// stream DataLocal get data newest data
+  Future<void> _streamNews() async {
+    try {
+      List<DataFilter>? filterUpdate = [];
+      if (_filters != null) {
+        for (DataFilter filter in _filters!) {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
+            filterUpdate.add(filter);
           }
-          _log("Berhasil save data");
-        } catch (e) {
-          _log("gagal save state : $e");
-          //
         }
-        _log("end of savestate number : ${i + 1}");
-      } catch (e) {
-        _log("pref null");
       }
+      filterUpdate.add(
+        DataFilter("createdAt", isGreaterThan: _container.lastDataCreatedAt),
+      );
+      _newStream = FirestoreUtil()
+          .queryBuilder(
+            collectionPath,
+            sorts: [DataSort("createdAt", desc: true)],
+            filters: filterUpdate,
+          )
+          .snapshots()
+          .listen((event) async {
+            if (event.docs.isNotEmpty) {
+              for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
+                DataItem element = DataItem.fromMap({
+                  "id": doc.id,
+                  "data": jsonDecode(doc.data()!.toJson()),
+
+                  //               "data": jsonDecode(doc.data()!.toJson()),
+                  "name": stateName,
+                  "parent": collectionPath,
+                  "createdAt": DateTimeUtils.toDateTime(
+                    doc.data()!['createdAt'],
+                  ),
+                  "updatedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['updatedAt'],
+                  ),
+                  "deletedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['deletedAt'],
+                  ),
+                });
+                try {
+                  _raw[doc.id] = element;
+                  _container.ids.add(element.path());
+                  await _raw[doc.id]!.save({});
+                } catch (e) {
+                  _log("newStream error(1) : $e");
+                }
+              }
+              _container.lastDataCreatedAt = DateTimeUtils.toDateTime(
+                event.docs.first['createdAt'],
+              );
+              _newStream?.cancel();
+              _streamNews();
+              _syncCounter();
+              _log("new Stream available, ${_container.lastDataCreatedAt}");
+            } else {
+              _log("new Stream unavailable, ${_container.lastDataCreatedAt}");
+            }
+          });
+    } catch (e) {
+      _log("newStream error(2) : $e");
     }
-    _isLoading = false;
-    refresh();
   }
 
-  /// Used to load state data from shared preferences
-  Future<void> _loadState() async {
-    // _log("start loadstate");
-    _isLoading = true;
-    refresh();
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    int i = 0;
-    bool lanjut = true;
-    List<DataItem> result = [];
-    while (lanjut) {
-      String? res = (prefs.getString(EncryptUtil().encript("$_name-$i")));
-      if (res != null) {
-        // _log("start loadstate number: ${i + 1}");
-        try {
-          if (kIsWeb) {
-            Map<String, dynamic> value = _jsonToListDataItem([null, res]);
-            result.addAll(value['data']);
-          } else {
-            ReceivePort rPort = ReceivePort();
-            await Isolate.spawn(_jsonToListDataItem, [rPort.sendPort, res]);
-            Map<String, dynamic> value = await rPort.first;
-            result.addAll(value['data']);
-            rPort.close();
+  /// stream DataLocal get data newest updated data
+  Future<void> _streamUpdates() async {
+    try {
+      List<DataFilter>? filterUpdate = [];
+      if (_filters != null) {
+        for (DataFilter filter in _filters!) {
+          if ((filter.key as DataKey).key != "updatedAt" &&
+              (filter.key as DataKey).key != "createdAt" &&
+              (filter.key as DataKey).key != 'deletedAt') {
+            filterUpdate.add(filter);
           }
-          refresh();
-          // _log("Berhasil load data");
-        } catch (e) {
-          //
         }
-        i++;
-      } else {
-        lanjut = false;
       }
+      filterUpdate.add(
+        DataFilter("updatedAt", isGreaterThan: _container.lastDataUpdatedAt),
+      );
+      // _log('start stream $collectionPath');
+      _updateStream = FirestoreUtil()
+          .queryBuilder(
+            collectionPath,
+            sorts: [DataSort("updatedAt", desc: true)],
+            filters: filterUpdate,
+          )
+          .snapshots()
+          .listen((event) async {
+            // _log('listen stream $collectionPath');
+            if (event.docs.isNotEmpty) {
+              for (DocumentSnapshot<Map<String, dynamic>> doc in event.docs) {
+                DataItem element = DataItem.fromMap({
+                  "id": doc.id,
+                  "data": jsonDecode(doc.data()!.toJson()),
+                  "name": stateName,
+                  "parent": collectionPath,
+                  "createdAt": DateTimeUtils.toDateTime(
+                    doc.data()!['createdAt'],
+                  ),
+                  "updatedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['updatedAt'],
+                  ),
+                  "deletedAt": DateTimeUtils.toDateTime(
+                    doc.data()!['deletedAt'],
+                  ),
+                });
+                try {
+                  _raw[doc.id] = element;
+                  await _raw[doc.id]!.save({});
+                } catch (e) {
+                  _log("newStream error(1) : $e");
+                  //
+                }
+              }
+              _count = _container.ids.length;
+              _container.lastDataUpdatedAt = DateTimeUtils.toDateTime(
+                event.docs.first['updatedAt'],
+              );
+              _updateStream?.cancel();
+              _streamUpdates();
+              _syncCounter();
+              _log('update available, ${_container.lastDataUpdatedAt}');
+              refresh();
+            } else {
+              _log('update unavailable, ${_container.lastDataUpdatedAt}');
+            }
+          });
+    } catch (e) {
+      _log("updateStream error(2) : $e");
     }
-    _data = result;
-    _count = data.length;
-    _data = await find(
-        // sorts: sorts
-        );
-    _isLoading = false;
-    refresh();
   }
 
-  /// Used to delete state data from shared preferences
-  // Future<void> _deleteState() async {
-  //   _isLoading = true;
-  //   refresh();
-  //   final SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   int i = 0;
-  //   bool lanjut = true;
-  //   List<DataItem> result = [];
-  //   while (lanjut) {
-  //     String? res = (prefs.getString(EncryptUtil().encript("$_name-$i")));
-  //     if (res != null) {
-  //       await prefs.remove(EncryptUtil().encript("$_name-$i"));
-  //       i++;
-  //     } else {
-  //       lanjut = false;
-  //     }
-  //   }
-  //   _data = result;
-  //   _count = data.length;
-  //   _data = await find(
-  //       // sorts: sorts
-  //       );
-  //   _isLoading = false;
-  //   refresh();
-  // }
-
-  /// Refresh data, launch if onRefresh is include
+  /// refresh state
+  @override
   refresh() {
     if (onRefresh != null) {
       _log("refresh berjalan");
@@ -456,321 +501,453 @@ class DataLocalForFirestore {
     }
   }
 
-  void dispose() {}
+  /// presync data to laod limited data
+  Future<void> _presync() async {
+    // print("presync counter");
+    await _syncCounter();
+    // print("presync");
+
+    List<DocumentSnapshot<Map<String, dynamic>>> news = await DataCompute()
+        .isolate(
+          (arguments) async {
+            Query<Map<String, dynamic>> query = arguments[0];
+            List<DocumentSnapshot<Map<String, dynamic>>> news =
+                (await query.get()).docs;
+            return news;
+          },
+          args: [
+            FirestoreUtil().queryBuilder(
+              collectionPath,
+              sorts: _sorts,
+              filters: _filters,
+              limit: _size,
+            ),
+          ],
+        );
+    if (news.isNotEmpty) {
+      for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
+        DataItem element = DataItem.fromMap({
+          "id": doc.id,
+          "data": jsonDecode(doc.data()!.toJson()),
+          "name": stateName,
+          "parent": collectionPath,
+          "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+          "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+          "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+        });
+        try {
+          _raw[doc.id] = element;
+          _container.ids.add(element.path());
+          await _raw[doc.id]!.save({});
+        } catch (e) {
+          _log("newStream error(1) : $e");
+          //
+        }
+      }
+      // print("presync _ end");
+      _container.lastDataCreatedAt = DateTime.now();
+      _syncContainer();
+      refresh();
+    }
+  }
+
+  /// sync data to laod
+  Future<void> _sync() async {
+    // print("start sync");
+    int ac = _container.params['actualCount'];
+    // print("$ac");
+    int pages = (ac / _size).ceil();
+    DocumentSnapshot<Map<String, dynamic>>? ldoc;
+    // print("start sync - for");
+    for (int i = 0; i < pages; i++) {
+      if (ldoc != null) {
+        // print("==========${ldoc!.id}");
+      }
+      List<DocumentSnapshot<Map<String, dynamic>>> news = await DataCompute()
+          .isolate(
+            (arguments) async {
+              Query<Map<String, dynamic>> query = arguments[0];
+              List<DocumentSnapshot<Map<String, dynamic>>> news =
+                  (await query.get()).docs;
+              // print("=================${news.length}");
+              return news;
+            },
+            args: [
+              FirestoreUtil().queryBuilder(
+                collectionPath,
+                sorts: _sorts,
+                filters: _filters,
+                limit: _size,
+                startAfterDocument: ldoc,
+              ),
+            ],
+          );
+      if (news.isNotEmpty) {
+        for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
+          DataItem element = DataItem.fromMap({
+            "id": doc.id,
+            "data": jsonDecode(doc.data()!.toJson()),
+            "name": stateName,
+            "parent": collectionPath,
+            "createdAt": DateTimeUtils.toDateTime(doc.data()!['createdAt']),
+            "updatedAt": DateTimeUtils.toDateTime(doc.data()!['updatedAt']),
+            "deletedAt": DateTimeUtils.toDateTime(doc.data()!['deletedAt']),
+          });
+          try {
+            _raw[doc.id] = element;
+            _container.ids.add(element.path());
+            await _raw[doc.id]!.save({});
+          } catch (e) {
+            _log("newStream error(1) : $e");
+            // print("=================$e");
+          }
+        }
+        ldoc = news.last;
+        refresh();
+      }
+    }
+    // print("start sync - end for");
+    _container.lastDataCreatedAt = DateTime.now();
+    await _syncContainer();
+    // print("end sync");
+  }
+
+  /// sync count of data to laod
+  Future<void> _syncCounter() async {
+    int ac = await DataCompute().isolate(
+      (arguments) async {
+        AggregateQuery query = arguments[0];
+        return (await query.get()).count;
+      },
+      args: [
+        FirestoreUtil()
+            .queryBuilder(
+              collectionPath,
+              sorts: _sorts,
+              filters: _filters,
+              isCount: true,
+            )
+            .count(),
+      ],
+    );
+    _container.params['actualCount'] = ac;
+    _container.params['size'] = _size;
+    _syncContainer();
+  }
+
+  /// sync container data
+  Future<void> _syncContainer() async {
+    _container.ids = _container.ids.toSet().toList();
+    _count = _container.ids.length;
+    await _saveState();
+    refresh();
+  }
 
   /// Find More Efective Data with this function
-  Future<List<DataItem>> find({
+  @override
+  Future<DataQuery> find({
     List<DataFilter>? filters,
     List<DataSort>? sorts,
     DataSearch? search,
+    DataPaginate? paginate,
   }) async {
     // _log('findAsync Isolate.spawn');
     Map<String, dynamic> res = {};
     try {
-      if (kIsWeb) {
-        res = _listDataItemFind([null, data, filters, sorts, search]);
-      } else {
-        ReceivePort rPort = ReceivePort();
-        await Isolate.spawn(
-            _listDataItemFind, [rPort.sendPort, data, filters, sorts, search]);
-        res = await rPort.first;
-        rPort.close();
-      }
+      res = await DataCompute().isolate((args) async {
+        Map<String, DataItem> raw = Map<String, DataItem>.from(args[0]);
+        List<DataFilter>? filters = args[1];
+        List<DataSort>? sorts = args[2];
+        DataSearch? search = args[3];
+        DataPaginate? paginate = args[4];
+
+        List<DataItem> data = raw.entries.map((entry) => entry.value).toList();
+
+        if (filters != null) {
+          data = data.filterData(filters);
+        }
+        if (sorts != null) {
+          data = data.sortData(sorts);
+        }
+        if (search != null) {
+          data = data.searchData(search);
+        }
+        Map<String, dynamic> result = {};
+        result['count'] = data.length;
+        if (paginate != null) {
+          try {
+            result['page'] = paginate.page;
+            result['pageSize'] = paginate.size;
+            data = data.paginate(paginate);
+          } catch (e) {
+            //
+          }
+        }
+        result['length'] = data.length;
+        result['data'] = data;
+        return result;
+      }, args: [_raw, filters, sorts, search, paginate]);
     } catch (e, st) {
       _log('findAsync Isolate.spawn $e, $st');
     }
-    return res['data'];
+    return DataQuery(
+      data: res['data'],
+      length: res['length'],
+      count: res['count'],
+      page: res['page'],
+      pageSize: res['pageSize'],
+    );
+  }
+
+  /// Find More Efective Data with this function
+  @override
+  Future<DataItem?> get(String id) async {
+    // _log('findAsync Isolate.spawn');
+    return _raw[id];
   }
 
   /// Insert and save DataItem
-  Future<DataItem> insertOne(Map<String, dynamic> value) async {
-    DocumentSnapshot<Map<String, dynamic>> d = await FirestoreUtil()
-        .insertAndGet(collectionPath: collectionPath, value: value);
-
-    DataItem newData = DataItem.create(
-      d.id,
-      value: d.data(),
-      parent: stateName,
-    );
+  @override
+  Future<DataItem> insertOne(Map<String, dynamic> value, {String? id}) async {
+    _container.seq++;
     try {
-      data.insert(0, newData);
+      if (value['createdAt'] == null) {
+        value['createdAt'] = FieldValue.serverTimestamp();
+      }
       refresh();
-      find(
-              // sorts: sorts
-              )
-          .then((value) async {
-        _data = value;
-        _count = data.length;
-        refresh();
-        _log("start save state");
-        await _saveState();
-        _log("start save success");
-      });
+      DocumentReference ref = await FirebaseFirestore.instance
+          .collection(collectionPath)
+          .add(value);
+      DataItem newData = DataItem.create(
+        ref.id,
+        value: value,
+        name: stateName,
+        parent: collectionPath,
+        seq: _container.seq,
+      );
+      _raw[newData.id] = newData;
+      await newData.save({});
+      _container.ids.add(newData.path());
+      _container.lastDataCreatedAt = newData.createdAt;
+      _count = _container.ids.length;
+
+      await _saveState();
+      return newData;
+    } catch (e) {
+      _log("error disini, $e");
+      //
+      rethrow;
+    }
+  }
+
+  /// destroy running datalocal
+  @override
+  void dispose() async {
+    _newStream?.cancel();
+    _updateStream?.cancel();
+    _periodicStream?.cancel();
+  }
+
+  /// insert many data
+  @override
+  Future<void> insertMany(List<Map<String, dynamic>> values) async {
+    for (Map<String, dynamic> value in values) {
+      _container.seq++;
+      try {
+        DocumentReference ref = await FirebaseFirestore.instance
+            .collection(collectionPath)
+            .add(value);
+        DataItem newData = DataItem.create(
+          ref.id,
+          value: value,
+          name: stateName,
+          parent: collectionPath,
+          seq: _container.seq,
+        );
+        _raw[newData.id] = newData;
+        await newData.save({});
+        _container.ids.add(newData.path());
+        _container.lastDataCreatedAt = newData.createdAt;
+        _count = _container.ids.length;
+      } catch (e) {
+        //
+      }
+    }
+    try {
+      refresh();
+      await _saveState();
     } catch (e) {
       _log("error disini");
       //
     }
-    return newData;
   }
 
   /// Update to save DataItem
-  Future<DataItem> updateOne(String id,
-      {required Map<String, dynamic> value}) async {
+  @override
+  Future<DataItem> updateOne(
+    String id, {
+    required Map<String, dynamic> value,
+  }) async {
     try {
-      Map<String, dynamic> res = {};
-      if (kIsWeb) {
-        res = _listDataItemUpdate([null, data, id, value]);
-      } else {
-        ReceivePort rPort = ReceivePort();
-        await Isolate.spawn(
-            _listDataItemUpdate, [rPort.sendPort, data, id, value]);
-        res = await rPort.first;
-        rPort.close();
-      }
-      _data = res['data'];
-      _count = data.length;
+      _count = _container.ids.length;
     } catch (e, st) {
       _log('findAsync Isolate.spawn $e, $st');
     }
 
-    List<DataItem> d = await find(
-      filters: [DataFilter(key: "#id", value: id)],
-    );
-    if (d.isEmpty) {
-      throw "Tidak ada data";
-    }
+    await _raw[id]!.save(value);
+    value['updatedAt'] = FieldValue.serverTimestamp();
+    await FirebaseFirestore.instance
+        .collection(collectionPath)
+        .doc(id)
+        .update(value)
+        .then((_) {});
+    _container.lastDataUpdatedAt = _raw[id]?.updatedAt;
     refresh();
-    _saveState();
-    return d.first;
-  }
-
-  Future<DataItem> updateSyncOne(String id,
-      {required Map<String, dynamic> value}) async {
-    DataItem d = await updateOne(id, value: value);
-
-    FirestoreUtil().update(collectionPath, id: id, value: value);
-    refresh();
-    return d;
-  }
-
-  Future<DataItem> syncOne(
-    String id,
-  ) async {
-    List<DataItem> d = await find(
-      filters: [DataFilter(key: "#id", value: id)],
-    );
-
-    FirestoreUtil().update(collectionPath, id: id, value: d.first.data);
-    refresh();
-    return d.first;
+    await _saveState();
+    return _raw[id]!;
   }
 
   /// Deletion DataItem
-  Future<void> deleteOne(String id) async {
+  @override
+  Future<void> removeOne(String id) async {
     try {
-      Map<String, dynamic> res = {};
-      if (kIsWeb) {
-        res = _listDataItemDelete([null, data, id]);
-      } else {
-        ReceivePort rPort = ReceivePort();
-        await Isolate.spawn(_listDataItemDelete, [rPort.sendPort, data, id]);
-        res = await rPort.first;
-        rPort.close();
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      DataItem? d = _raw[id];
+      if (d == null) {
+        throw "Data with id $id, not found";
       }
-      _data = res['data'];
-      _count = data.length;
-      FirestoreUtil().delete(collectionPath, id: id);
+      _raw.remove(id);
+      _container.ids.remove(id);
+      _count = _container.ids.length;
+      await prefs.remove(EncryptUtil().encript(d.path()));
+      await FirebaseFirestore.instance
+          .collection(collectionPath)
+          .doc(id)
+          .delete();
     } catch (e, st) {
       _log('findAsync Isolate.spawn $e, $st');
     }
 
     refresh();
-    _saveState();
+    await _saveState();
   }
 
-  Future<void> _sync() async {
+  /// remove many data
+  @override
+  Future<void> removeMany(List<String> ids) async {
     try {
-      if (!isInit) throw "not init yet";
-      _count = (await FirestoreUtil()
-                  .queryBuilder(_collectionPath,
-                      sorts: _sorts, filters: _filters, isCount: true)
-                  .count()
-                  .get())
-              .count ??
-          0;
-
-      List<DocumentSnapshot<Map<String, dynamic>>> news = (await FirestoreUtil()
-              .queryBuilder(
-                _collectionPath,
-                sorts: _sorts,
-                filters: _filters,
-              )
-              .get())
-          .docs;
-      if (news.isNotEmpty) {
-        for (DocumentSnapshot<Map<String, dynamic>> doc in news) {
-          DataItem element =
-              DataItem.fromMap({"id": doc.id, "data": doc.data()});
-          try {
-            if (kIsWeb) {
-              _data = _listDataItemAddUpdate([null, data, element])['data'];
-            } else {
-              ReceivePort rPort = ReceivePort();
-              await Isolate.spawn(
-                  _listDataItemAddUpdate, [rPort.sendPort, data, element]);
-              _data = Map<String, dynamic>.from(await rPort.first)['data'];
-              rPort.close();
-            }
-          } catch (e) {
-            _log("newStream error(1) : $e");
-            //
-          }
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      for (String id in ids) {
+        DataItem? d = _raw['id'];
+        if (d == null) {
+          throw "Data with id $id, not found";
         }
-        _data = await find(sorts: _sorts);
-        refresh();
-        _saveState();
-        _count = data.length;
-        _lastNewestCheck = DateTime.now();
+        _raw.remove(id);
+        _container.ids.remove(id);
+        _count = _container.ids.length;
+        await prefs.remove(EncryptUtil().encript(d.path()));
+        await FirebaseFirestore.instance
+            .collection(collectionPath)
+            .doc(id)
+            .delete()
+            .then((_) {});
       }
+    } catch (e, st) {
+      _log('findAsync Isolate.spawn $e, $st');
+    }
+
+    refresh();
+    await _saveState();
+  }
+
+  /// savestate data to load other time
+  Future<void> _saveState() async {
+    _isLoading = true;
+    refresh();
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        EncryptUtil().encript(_name),
+        EncryptUtil().encript(_container.toJson()),
+      );
     } catch (e) {
       //
     }
+    _isLoading = false;
+    refresh();
   }
 
-  /// Start from initialize, save state will not deleted
-  // Future<void> reboot() async {
-  //   await _deleteState();
-  //   _data.clear();
-  //   await _initialize();
-  // }
-}
+  /// Used to load state data from shared preferences
+  Future<void> _loadState() async {
+    _isLoading = true;
+    refresh();
 
-dynamic _listDataItemAddUpdate(List<dynamic> args) {
-  // _log('_listDataItemAddUpdate start');
-  List<DataItem> result = args[1];
-  DataItem newData = args[2];
-
-  int index = result.indexWhere((element) => element.id == newData.id);
-  if (index >= 0) {
-    result[index] = newData;
-  } else {
-    result.insert(0, newData);
-  }
-  if (kIsWeb) {
-    return {"data": result, "count": result.length};
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, {"data": result, "count": result.length});
-  }
-}
-
-/// Convert Json to List<DataItem>
-dynamic _jsonToListDataItem(List<dynamic> args) {
-  List<DataItem> result = [];
-  int count = 0;
-  try {
-    result = List<Map<String, dynamic>>.from(
-            jsonDecode(EncryptUtil().decript(args[1])))
-        .map((e) => DataItem.fromMap(e))
-        .toList();
-    count = result.length;
-  } catch (e) {
-    // print(args[1]);
-  }
-  if (kIsWeb) {
-    return {"data": result, "count": count};
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, {"data": result, "count": count});
-  }
-}
-
-/// Update List DataItem
-dynamic _listDataItemUpdate(List<dynamic> args) {
-  List<DataItem> result = args[1];
-  String id = args[2];
-  Map<String, dynamic> update = args[3];
-
-  int i = result.indexWhere((element) => element.id == id);
-  if (i >= 0) {
-    result[i].update(update);
-  }
-
-  if (kIsWeb) {
-    return {"data": result, "count": result.length};
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, {"data": result, "count": result.length});
-  }
-}
-
-/// Delete List DataItem
-dynamic _listDataItemDelete(List<dynamic> args) {
-  List<DataItem> result = args[1];
-  String id = args[2];
-
-  int i = result.indexWhere((element) => element.id == id);
-  if (i >= 0) {
-    result.removeAt(i);
-  }
-
-  if (kIsWeb) {
-    return {"data": result, "count": result.length};
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, {"data": result, "count": result.length});
-  }
-}
-
-/// Find List DataItem
-dynamic _listDataItemFind(List<dynamic> args) {
-  // _log('_listDataItemFind start');
-
-  List<DataItem> result = args[1];
-  List<DataFilter>? filters = args[2];
-  List<DataSort>? sorts = args[3];
-  DataSearch? search = args[4];
-
-  if (filters != null) {
-    result = result.filterData(filters);
-  }
-  if (sorts != null) {
-    result = result.sortData(sorts);
-  }
-  if (search != null) {
-    result = result.searchData(search);
-  }
-  // _log(result.length.toString());
-  if (kIsWeb) {
-    return {"data": result, "count": result.length};
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, {"data": result, "count": result.length});
-  }
-}
-
-/// Convert List<DataItem> to json
-dynamic _listDataItemToJson(List<dynamic> args) {
-  // _log('_listDataItemModelToJson start');
-  String result = jsonEncode(
-    (args[1] as List<DataItem>).map((e) => e.toMap()).toList(),
-    toEncodable: (_) {
-      // if (_ is Timestamp) {
-      //   return DateTimeUtils.toDateTime(_).toString();
-      // }
-      if (_ is DateTime) {
-        return DateTimeUtils.toDateTime(_).toString();
-      } else {
-        // _log(_.runtimeType.toString());
-        return "";
+    for (String id in _container.ids) {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      DataItem? d = await DataCompute().isolate((args) async {
+        String? ref = prefs.getString(EncryptUtil().encript(id));
+        if (ref == null) {
+          // Tidak ada data yang disimpan
+          return null;
+        } else {
+          DataItem d = DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref)));
+          // _data.add(DataItem.fromMap(jsonDecode(EncryptUtil().decript(ref))));
+          return d;
+        }
+      });
+      if (d != null) {
+        _raw[d.id] = d;
       }
-    },
-  );
-  // _log('${result.length}');
-  if (kIsWeb) {
-    return EncryptUtil().encript(result);
-  } else {
-    SendPort port = args[0];
-    Isolate.exit(port, EncryptUtil().encript(result));
+    }
+
+    _count = _container.ids.length;
+
+    _isLoading = false;
+    refresh();
+  }
+
+  /// reset datalocal
+  Future<void> reset() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    // print(_container.ids.length);
+    for (String id in _container.ids) {
+      DataItem? d = _raw[id];
+      if (d == null) {
+        throw "Data with id $id, not found";
+      }
+      _raw.remove(id);
+      _container.ids.remove(id);
+      _count = _container.ids.length;
+      await prefs.remove(EncryptUtil().encript(d.path()));
+    }
+    await _saveState();
+    _isInit = false;
+    refresh();
+    await _initialize();
+  }
+}
+
+extension MapStringDynamic on Map<String, dynamic> {
+  /// fix data type to save in datalocal
+  String toJson() {
+    return jsonEncode(
+      this,
+      toEncodable: (value) {
+        if (value is DateTime) {
+          return DateTimeUtils.toDateTime(value).toString();
+        } else if (value is Timestamp) {
+          return DateTime.fromMillisecondsSinceEpoch(
+            value.millisecondsSinceEpoch,
+          ).toString();
+        } else if (value is GeoPoint) {
+          return jsonEncode({
+            "latitude": value.latitude,
+            "longitude": value.longitude,
+          });
+        } else {
+          return "";
+        }
+      },
+    );
   }
 }
