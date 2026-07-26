@@ -12,7 +12,7 @@ local DataLocal collection.
 ```yaml
 dependencies:
   datalocal: ^2.0.0
-  datalocal_for_firestore: ^2.0.0-dev.2
+  datalocal_for_firestore: ^2.0.0-dev.3
 ```
 
 Initialize Firebase normally, then open DataLocal using either its

@@ -1,7 +1,7 @@
 name: datalocal_for_firestore
 description: "Firestore synchronization and local materialized views for DataLocal."
 repository: "https://github.com/lamun-my-id/datalocal_for_firestore.git"
-version: 2.0.0-dev.2
+version: 2.0.0-dev.3
 # test    : dart pub publish --dry-run
 # deploy  : dart pub publish
 # flutter pub upgrade --major-versions

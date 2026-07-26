@@ -1,3 +1,8 @@
+## 2.0.0-dev.3
+
+* Modernize the Android example for Java 21, Gradle 9, AGP 9, and built-in
+  Kotlin.
+
 ## 2.0.0-dev.2
 
 * Skip local writes and reactive emissions for unchanged remote documents.
