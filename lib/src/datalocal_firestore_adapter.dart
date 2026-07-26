@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:collection/collection.dart';
 import 'package:datalocal/datalocal.dart';
 
 import 'datalocal_firestore_codec.dart';
@@ -34,6 +35,7 @@ final class DataLocalFirestoreAdapter {
 
   final DataLocalCollection<Map<String, Object?>> _local;
   final Query<Map<String, dynamic>> _query;
+  static const _equality = DeepCollectionEquality();
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subscription;
   Future<void> _pending = Future<void>.value();
 
@@ -97,7 +99,7 @@ final class DataLocalFirestoreAdapter {
       if (current == null) {
         await _local.insert(remote.data, id: remote.id);
         inserted++;
-      } else {
+      } else if (!_equality.equals(current.data, remote.data)) {
         await _local.replace(
           remote.id,
           remote.data,
@@ -125,7 +127,7 @@ final class DataLocalFirestoreAdapter {
       if (current == null) {
         await _local.insert(remote.data, id: remote.id);
         inserted++;
-      } else {
+      } else if (!_equality.equals(current.data, remote.data)) {
         await _local.replace(
           remote.id,
           remote.data,

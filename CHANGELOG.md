@@ -1,3 +1,7 @@
+## 2.0.0-dev.2
+
+* Skip local writes and reactive emissions for unchanged remote documents.
+
 ## 2.0.0-dev.1
 
 * Rebuild the package as a DataLocal 2 materialized-view adapter.

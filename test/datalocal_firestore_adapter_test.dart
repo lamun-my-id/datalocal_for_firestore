@@ -43,6 +43,9 @@ void main() {
       );
       expect(await notes.get('local-only'), isNotNull);
 
+      final unchanged = await adapter.pull();
+      expect(unchanged.changed, 0);
+
       await firestore.collection('notes').doc('remote-a').update(
         <String, Object?>{'title': 'Updated'},
       );
