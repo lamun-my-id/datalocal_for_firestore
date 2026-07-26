@@ -1,9 +1,9 @@
 name: datalocal_for_firestore
-description: "Flutter local data with integration with firestore saved with state."
+description: "Firestore synchronization and local materialized views for DataLocal."
 repository: "https://github.com/lamun-my-id/datalocal_for_firestore.git"
-version: 1.0.44
+version: 2.0.0-dev.1
 # test    : dart pub publish --dry-run
-# deploy  : dart pub publish 
+# deploy  : dart pub publish
 # flutter pub upgrade --major-versions
 
 environment:
@@ -14,21 +14,24 @@ dependencies:
     sdk: flutter
 
   cloud_firestore: ^6.7.1
-  datalocal: ^1.0.39
-  # datalocal:
-  #   path: ../datalocal/
-  shared_preferences: ^2.5.5
-  intl: ^0.20.3
-  collection: ^1.19.1
+  datalocal: ^2.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  fake_cloud_firestore: ^4.2.0
 
 flutter:
   uses-material-design: true
+
+topics:
+  - cache
+  - database
+  - firebase
+  - firestore
+  - offline
 
 false_secrets:
   - /example/android/app/google-services.json

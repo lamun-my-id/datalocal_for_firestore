@@ -1,55 +1,99 @@
 # DataLocal for Firestore
 
-Plugin package to store data locally with storage techniques using the "shared preferences" plugin, this plugin already supports Android, iOS, Web, Windows, MacOS, and Linux. Data storage and data retrieval use isolates, so it can maximize the performance of flutter.
+Firestore synchronization and local materialized views powered by
+[DataLocal](https://pub.dev/packages/datalocal).
 
-In addition, storing data in a structured manner, so it can be used to replace a local database. and there are various ways to call data, change data and delete data.
+This package does not replace Firestore's SDK or silently synchronize every
+DataLocal collection. It explicitly materializes one Firestore query into one
+local DataLocal collection.
 
-You can try it on
-[datalocal.web.app](https://datalocal.web.app).
+## Install
 
-## Getting Started
-
-The plugin itself is quite easy to use. Just call the DataLocal().create() method with the arguments. Don't forget to name the data state for example "notes". After that, you can do whatever you need such as inserting data, updating data, deleting data.
-The state data will be reloaded when the app is restarted, but the data will remain there, until the app is removed or uninstalled.
-
-#### Initialize example
-```dart
-state = await DataLocalForFirestore.stream("notes", collectionPath: "userNotes", onRefresh: () => setState(() {}));
+```yaml
+dependencies:
+  datalocal: ^2.0.0
+  datalocal_for_firestore: ^2.0.0-dev.1
 ```
-change the name "note" with the name of the appropriate collection.
 
-onRefresh can be filled in for what will be done when there is a data change (create, update, delete).
+Initialize Firebase normally, then open DataLocal using either its
+SharedPreferences adapter or `datalocal_sqlite`:
 
-### Usage
-
-for data usage and retrieval. Can be done using find(), this can also be done by sorting and filtering data easily. The result of data retrieval is a DataQuery containing data, the amount of data and the amount of data searched.
-
-DataItem is the data that is stored, you can retrieve data directly in the form of Map<String, dynamic> or you can retrieve data according to the desired field using data.get(Datakey("field name")).
 ```dart
-child: FutureBuilder<DataQuery>(
-future: state.find(sorts:[DataSort(DataKey("#createdAt"))]),
-builder: (_, snapshot){
-    if(!snapshot.hasData) return CircularProgressIndicator();
-    DataQuery query = snapshot.data;
-    List<DataItem> datas = query.data;
-    return Column(
-    children: List.generate(datas.length, (index){
-        DataItem data = datas[index];
-        return Text(data.get(DataKey("title")));
-    },
-    );
-    )
-},
-),
+final database = await DataLocalDatabase.open(
+  name: 'my_app',
+  storage: DataLocalSharedPreferencesAsyncStorage(),
+);
+
+final localNotes = database.mapCollection('notes');
+final sync = DataLocalFirestoreAdapter.collection(
+  localCollection: localNotes,
+  collectionPath: 'notes',
+);
 ```
-## Contribution 
-You can request new features, file issues for missing features relevant to this plugin. You can also help by pointing out any bugs. Feedback is also welcome.
 
-## Status 
-DataLocal will continue to be active in helping especially ourselves in project development.
+## One-time pull
 
-## Support the package (optional) 
-If you find this package useful, you can support it by giving it a star.
+```dart
+final report = await sync.pull();
+print('Changed ${report.changed} local documents');
 
-## Credits 
-This package is developed by void
+final cached = await localNotes
+    .query()
+    .where('completed', isEqualTo: false)
+    .orderBy('title')
+    .get();
+```
+
+A pull upserts returned documents but does not delete local documents absent
+from the result, because the Firestore query may be filtered or limited.
+
+## Realtime materialized view
+
+```dart
+final reports = sync.watch().listen((report) {
+  print('Firestore changed ${report.changed} cached documents');
+});
+
+// Read and watch through DataLocal while remote snapshots update the cache.
+final localSnapshots = localNotes.query().watch().listen((snapshot) {
+  print('${snapshot.documents.length} locally available notes');
+});
+
+await reports.cancel();
+await sync.stop();
+await localSnapshots.cancel();
+await database.close();
+```
+
+For a filtered Firestore query, a `removed` snapshot means the document is
+removed from that local materialized view. It may have been deleted remotely or
+simply stopped matching the query.
+
+## Custom Firestore queries and Firebase apps
+
+```dart
+final query = FirebaseFirestore.instanceFor(app: secondaryApp)
+    .collection('notes')
+    .where('ownerId', isEqualTo: userId)
+    .orderBy('updatedAt', descending: true)
+    .limit(100);
+
+final sync = DataLocalFirestoreAdapter(
+  localCollection: localNotes,
+  remoteQuery: query,
+);
+```
+
+Firestore timestamps are normalized to UTC ISO-8601 strings. GeoPoints become
+`{latitude, longitude}` maps, document references become paths, and blobs
+become base64 strings before DataLocal persists them.
+
+## Scope of this prerelease
+
+Version 2 starts with remote-to-local pull and realtime reconciliation. It does
+not yet include an offline outbound mutation queue, automatic retry,
+tombstones, or conflict resolution. Continue using Firestore's write APIs for
+remote mutations until those semantics are introduced explicitly.
+
+Use a per-user DataLocal database or collection namespace and clear it during
+logout. Never expose one user's cached materialized view to another user.

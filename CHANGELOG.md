@@ -1,3 +1,10 @@
+## 2.0.0-dev.1
+
+* Rebuild the package as a DataLocal 2 materialized-view adapter.
+* Add explicit one-time pull and serialized realtime reconciliation.
+* Normalize Firestore-specific values before local persistence.
+* Support injected Firestore queries and secondary Firebase apps.
+
 ## 1.0.44
 
 * Upgrade to Flutter 3.44 and Dart 3.12.
