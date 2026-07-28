@@ -1,3 +1,9 @@
+## 2.0.0
+
+* Release the stable DataLocal 2 Firestore materialized-view adapter.
+* Include one-time pull, serialized realtime reconciliation, Firestore value
+  normalization, injected queries, and unchanged-document detection.
+
 ## 2.0.0-dev.3
 
 * Modernize the Android example for Java 21, Gradle 9, AGP 9, and built-in

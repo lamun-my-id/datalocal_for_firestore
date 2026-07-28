@@ -12,7 +12,7 @@ local DataLocal collection.
 ```yaml
 dependencies:
   datalocal: ^2.0.0
-  datalocal_for_firestore: ^2.0.0-dev.3
+  datalocal_for_firestore: ^2.0.0
 ```
 
 Initialize Firebase normally, then open DataLocal using either its
@@ -88,7 +88,7 @@ Firestore timestamps are normalized to UTC ISO-8601 strings. GeoPoints become
 `{latitude, longitude}` maps, document references become paths, and blobs
 become base64 strings before DataLocal persists them.
 
-## Scope of this prerelease
+## Current scope
 
 Version 2 starts with remote-to-local pull and realtime reconciliation. It does
 not yet include an offline outbound mutation queue, automatic retry,
